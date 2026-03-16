@@ -11,6 +11,7 @@ a more user-friendly way.
 """
 
 import argparse
+import contextlib
 import os
 import random
 import sys
@@ -30,6 +31,8 @@ import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import add_launcher_args, get_checkpoint_path, launch_simulation, resolve_task_config
 
 # PLACEHOLDER: Extension template (do not remove this comment)
+with contextlib.suppress(ImportError):
+    import isaaclab_tasks_experimental  # noqa: F401
 
 SKRL_VERSION = "1.4.3"
 
@@ -194,27 +197,30 @@ def main():
         obs, _ = env.reset()
         timestep = 0
         # simulate environment
-        while True:
-            start_time = time.time()
+        try:
+            while True:
+                start_time = time.time()
 
-            with torch.inference_mode():
-                outputs = runner.agent.act(obs, timestep=0, timesteps=0)
-                if hasattr(env, "possible_agents"):
-                    actions = {a: outputs[-1][a].get("mean_actions", outputs[0][a]) for a in env.possible_agents}
-                else:
-                    actions = outputs[-1].get("mean_actions", outputs[0])
-                obs, _, _, _, _ = env.step(actions)
-            if args_cli.video:
-                timestep += 1
-                if timestep == args_cli.video_length:
-                    break
+                with torch.inference_mode():
+                    outputs = runner.agent.act(obs, timestep=0, timesteps=0)
+                    if hasattr(env, "possible_agents"):
+                        actions = {a: outputs[-1][a].get("mean_actions", outputs[0][a]) for a in env.possible_agents}
+                    else:
+                        actions = outputs[-1].get("mean_actions", outputs[0])
+                    obs, _, _, _, _ = env.step(actions)
+                if args_cli.video:
+                    timestep += 1
+                    if timestep == args_cli.video_length:
+                        break
 
-            sleep_time = dt - (time.time() - start_time)
-            if args_cli.real_time and sleep_time > 0:
-                time.sleep(sleep_time)
+                sleep_time = dt - (time.time() - start_time)
+                if args_cli.real_time and sleep_time > 0:
+                    time.sleep(sleep_time)
 
-        # close the simulator
-        env.close()
+            # close the simulator
+            env.close()
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == "__main__":

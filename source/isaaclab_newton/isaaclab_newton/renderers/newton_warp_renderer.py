@@ -19,7 +19,6 @@ import warp as wp
 from isaaclab.renderers import BaseRenderer
 from isaaclab.sim import SimulationContext
 from isaaclab.utils.math import convert_camera_frame_orientation_convention
-from isaaclab.visualizers import VisualizerCfg
 
 from .newton_warp_renderer_cfg import NewtonWarpRendererCfg
 
@@ -98,11 +97,14 @@ class RenderData:
             orientations, origin="world", target="opengl"
         )
 
-        self.camera_transforms = wp.empty((1, self.render_context.world_count), dtype=wp.transformf)
+        self.camera_transforms = wp.empty(
+            (1, self.render_context.world_count), dtype=wp.transformf, device=self.render_context.device
+        )
         wp.launch(
             RenderData._update_transforms,
             self.render_context.world_count,
             [positions, converted_orientations, self.camera_transforms],
+            device=self.render_context.device,
         )
 
         if self.render_context is not None:
@@ -147,7 +149,27 @@ class NewtonWarpRenderer(BaseRenderer):
     RenderData = RenderData
 
     def __init__(self, cfg: NewtonWarpRendererCfg):
-        self.newton_sensor = newton.sensors.SensorTiledCamera(self.get_scene_data_provider().get_newton_model())
+        from isaaclab.physics.scene_data_requirements import (
+            aggregate_requirements,
+            requirement_for_renderer_type,
+        )
+
+        sim = SimulationContext.instance()
+        current_req = sim.get_scene_data_requirements()
+        renderer_req = requirement_for_renderer_type("newton_warp")
+        merged = aggregate_requirements([current_req, renderer_req])
+        if merged != current_req:
+            sim.update_scene_data_requirements(merged)
+
+        newton_model = self.get_scene_data_provider().get_newton_model()
+        if newton_model is None:
+            raise RuntimeError(
+                "NewtonWarpRenderer requires a Newton model but the scene data provider returned None. "
+                "This usually means the Newton model failed to build from the USD stage "
+                "(e.g., unsupported PhysX schemas such as tendons). "
+                "Check the log for earlier Newton model build errors."
+            )
+        self.newton_sensor = newton.sensors.SensorTiledCamera(newton_model)
 
     def prepare_stage(self, stage: Any, num_envs: int) -> None:
         """No-op for Newton Warp - uses Newton scene directly without stage export.
@@ -203,4 +225,4 @@ class NewtonWarpRenderer(BaseRenderer):
             render_data.sensor = None
 
     def get_scene_data_provider(self) -> BaseSceneDataProvider:
-        return SimulationContext.instance().initialize_scene_data_provider([VisualizerCfg(visualizer_type="newton")])
+        return SimulationContext.instance().initialize_scene_data_provider()

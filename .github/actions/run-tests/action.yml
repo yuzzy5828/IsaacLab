@@ -39,6 +39,14 @@ inputs:
     description: 'Run only tests with known CUDA issues (isolated from general tests)'
     default: 'false'
     required: false
+  flaky-only:
+    description: 'Run only clearly flaky tests (<60% pass rate); these are skipped in normal jobs'
+    default: 'false'
+    required: false
+  slightly-flaky-only:
+    description: 'Run only mildly flaky tests (96%+ pass rate); these are skipped in normal jobs'
+    default: 'false'
+    required: false
   include-files:
     description: 'Comma-separated list of specific test file paths to include (e.g., source/pkg/test/test_a.py,source/pkg/test/test_b.py)'
     default: ''
@@ -62,6 +70,8 @@ runs:
           local curobo_only="$8"
           local cuda_issue_only="$9"
           local include_files="${10}"
+          local flaky_only="${11}"
+          local slightly_flaky_only="${12}"
 
           echo "Running tests in: $test_path"
           if [ -n "$pytest_options" ]; then
@@ -107,9 +117,22 @@ runs:
             echo "Setting TEST_CUDA_ISSUE_ONLY=true"
           fi
 
+          if [ "$flaky_only" = "true" ]; then
+            docker_env_vars="$docker_env_vars -e TEST_FLAKY_ONLY=true"
+            echo "Setting TEST_FLAKY_ONLY=true"
+          fi
+
+          if [ "$slightly_flaky_only" = "true" ]; then
+            docker_env_vars="$docker_env_vars -e TEST_SLIGHTLY_FLAKY_ONLY=true"
+            echo "Setting TEST_SLIGHTLY_FLAKY_ONLY=true"
+          fi
+
           if [ -n "$include_files" ]; then
-            docker_env_vars="$docker_env_vars -e TEST_INCLUDE_FILES=$include_files"
-            echo "Setting TEST_INCLUDE_FILES=$include_files"
+            # Strip spaces so the value is safe to embed in an unquoted docker_env_vars string.
+            # conftest.py splits on commas and strips whitespace, so compact form works fine.
+            include_files_compact="${include_files// /}"
+            docker_env_vars="$docker_env_vars -e TEST_INCLUDE_FILES=$include_files_compact"
+            echo "Setting TEST_INCLUDE_FILES=$include_files_compact"
           fi
 
           if [ -n "$filter_pattern" ]; then
@@ -156,11 +179,11 @@ runs:
           # Copy test results with error handling
           echo "📋 Attempting to copy test results..."
           if docker cp $container_name:/workspace/isaaclab/tests/$result_file "$reports_dir/$result_file" 2>/dev/null; then
-            echo "✅ Test results copied successfully"
+            echo "✅ Test results copied successfully to $reports_dir/$result_file"
           else
             echo "❌ Failed to copy specific result file, trying to copy all test results..."
             if docker cp $container_name:/workspace/isaaclab/tests/ "$reports_dir/" 2>/dev/null; then
-              echo "✅ All test results copied successfully"
+              echo "✅ All test results copied successfully to $reports_dir/"
               # Look for any XML files and use the first one found
               if [ -f "$reports_dir/full_report.xml" ]; then
                 mv "$reports_dir/full_report.xml" "$reports_dir/$result_file"
@@ -193,4 +216,4 @@ runs:
         }
 
         # Call the function with provided parameters
-        run_tests "${{ inputs.test-path }}" "${{ inputs.result-file }}" "${{ inputs.container-name }}" "${{ inputs.image-tag }}" "${{ inputs.reports-dir }}" "${{ inputs.pytest-options }}" "${{ inputs.filter-pattern }}" "${{ inputs.curobo-only }}" "${{ inputs.cuda-issue-only }}" "${{ inputs.include-files }}"
+        run_tests "${{ inputs.test-path }}" "${{ inputs.result-file }}" "${{ inputs.container-name }}" "${{ inputs.image-tag }}" "${{ inputs.reports-dir }}" "${{ inputs.pytest-options }}" "${{ inputs.filter-pattern }}" "${{ inputs.curobo-only }}" "${{ inputs.cuda-issue-only }}" "${{ inputs.include-files }}" "${{ inputs.flaky-only }}" "${{ inputs.slightly-flaky-only }}"

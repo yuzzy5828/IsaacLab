@@ -9,6 +9,9 @@ import os
 from isaaclab_physx.physics import PhysxCfg
 
 import isaaclab.sim as sim_utils
+from isaaclab.devices.device_base import DevicesCfg
+from isaaclab.devices.keyboard import Se3KeyboardCfg
+from isaaclab.devices.spacemouse import Se3SpaceMouseCfg
 from isaaclab.envs.mdp.actions.rmpflow_actions_cfg import RMPFlowActionCfg
 from isaaclab.sensors import CameraCfg, FrameTransformerCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
@@ -52,9 +55,25 @@ class RmpFlowGalbotLeftArmCubeStackEnvCfg(stack_joint_pos_env_cfg.GalbotLeftArmC
             controller=GALBOT_LEFT_ARM_RMPFLOW_CFG,
             scale=1.0,
             body_offset=RMPFlowActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.0]),
-            articulation_prim_expr="/World/envs/env_.*/Robot",
             use_relative_mode=self.use_relative_mode,
         )
+
+        # Relative mode uses legacy teleop (keyboard/spacemouse) instead of XR;
+        # absolute mode keeps the inherited XR isaac_teleop pipeline.
+        if self.use_relative_mode:
+            self.isaac_teleop = None
+            self.teleop_devices = DevicesCfg(
+                devices={
+                    "keyboard": Se3KeyboardCfg(
+                        pos_sensitivity=0.05,
+                        rot_sensitivity=0.05,
+                    ),
+                    "spacemouse": Se3SpaceMouseCfg(
+                        pos_sensitivity=0.05,
+                        rot_sensitivity=0.05,
+                    ),
+                }
+            )
 
         # Set the simulation parameters
         self.sim.dt = 1 / 60
@@ -86,9 +105,26 @@ class RmpFlowGalbotRightArmCubeStackEnvCfg(stack_joint_pos_env_cfg.GalbotRightAr
             controller=GALBOT_RIGHT_ARM_RMPFLOW_CFG,
             scale=1.0,
             body_offset=RMPFlowActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.0]),
-            articulation_prim_expr="/World/envs/env_.*/Robot",
             use_relative_mode=self.use_relative_mode,
         )
+
+        # Relative mode uses legacy teleop (keyboard/spacemouse) instead of XR;
+        # absolute mode keeps the inherited XR isaac_teleop pipeline.
+        if self.use_relative_mode:
+            self.isaac_teleop = None
+            self.teleop_devices = DevicesCfg(
+                devices={
+                    "keyboard": Se3KeyboardCfg(
+                        pos_sensitivity=0.05,
+                        rot_sensitivity=0.05,
+                    ),
+                    "spacemouse": Se3SpaceMouseCfg(
+                        pos_sensitivity=0.05,
+                        rot_sensitivity=0.05,
+                    ),
+                }
+            )
+
         # Set the simulation parameters
         self.sim.dt = 1 / 120
         self.sim.render_interval = 6

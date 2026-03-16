@@ -42,11 +42,12 @@ EXTRAS_REQUIRE = {
     "sb3": ["stable-baselines3>=2.6", "tqdm", "rich"],  # tqdm/rich for progress bar
     "skrl": ["skrl>=1.4.3"],
     "rl-games": [
+        "aiohttp==3.13.3",
         "rl-games @ git+https://github.com/isaac-sim/rl_games.git@python3.11",
         "gym",
         "standard-distutils",
     ],  # rl-games still needs gym :(
-    "rsl-rl": ["rsl-rl-lib==3.1.2", "onnxscript>=0.5"],  # linux aarch 64 requires manual onnxscript installation
+    "rsl-rl": ["rsl-rl-lib==5.0.1", "onnxscript>=0.5"],  # linux aarch 64 requires manual onnxscript installation
 }
 # Add the names with hyphens as aliases for convenience
 EXTRAS_REQUIRE["rl_games"] = EXTRAS_REQUIRE["rl-games"]

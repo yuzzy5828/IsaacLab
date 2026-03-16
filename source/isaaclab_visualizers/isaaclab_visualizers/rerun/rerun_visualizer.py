@@ -8,14 +8,8 @@
 from __future__ import annotations
 
 import atexit
-import contextlib
 import logging
-import os
-import re
-import shutil
 import socket
-import subprocess
-import time
 import webbrowser
 from typing import TYPE_CHECKING
 from urllib.parse import quote
@@ -32,10 +26,10 @@ if TYPE_CHECKING:
     from isaaclab.physics import BaseSceneDataProvider
 
 logger = logging.getLogger(__name__)
-_RERUN_SERVER_PROCESS: subprocess.Popen | None = None
 
 
 def _is_port_free(port: int, host: str = "127.0.0.1") -> bool:
+    """Return whether a TCP port can be bound on host."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
@@ -46,129 +40,39 @@ def _is_port_free(port: int, host: str = "127.0.0.1") -> bool:
 
 
 def _is_port_open(port: int, host: str = "127.0.0.1") -> bool:
+    """Return whether a TCP port is currently accepting connections."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(0.2)
         return sock.connect_ex((host, int(port))) == 0
 
 
 def _normalize_host(addr: str) -> str:
+    """Normalize bind host to loopback-friendly address for client URLs."""
     if addr in ("0.0.0.0", "127.0.0.1", "localhost"):
         return "127.0.0.1"
     return addr
 
 
-def _listening_rerun_pid(port: int) -> int | None:
-    """Return rerun pid listening on port, if any."""
-    try:
-        proc = subprocess.run(["ss", "-ltnp"], capture_output=True, text=True, check=False)
-        if proc.returncode != 0:
-            return None
-        pattern = re.compile(rf":{int(port)}\b.*users:\(\(\"rerun\",pid=(\d+),")
-        for line in proc.stdout.splitlines():
-            match = pattern.search(line)
-            if match:
-                return int(match.group(1))
-    except Exception:
-        return None
-    return None
-
-
-def _terminate_pid(pid: int, timeout_s: float = 2.0) -> bool:
-    try:
-        os.kill(pid, 15)  # SIGTERM
-    except OSError:
-        return True
-    deadline = time.time() + timeout_s
-    while time.time() < deadline:
-        if not os.path.exists(f"/proc/{pid}"):
-            return True
-        time.sleep(0.05)
-    with contextlib.suppress(OSError):
-        os.kill(pid, 9)  # SIGKILL
-    time.sleep(0.05)
-    return not os.path.exists(f"/proc/{pid}")
-
-
-def _stop_managed_rerun_server() -> None:
-    global _RERUN_SERVER_PROCESS
-    if _RERUN_SERVER_PROCESS is None:
-        return
-    with contextlib.suppress(OSError):
-        _RERUN_SERVER_PROCESS.terminate()
-    _RERUN_SERVER_PROCESS = None
-
-
-def _ensure_rerun_server(
-    bind_address: str, grpc_port: int, web_port: int, auto_kill_stale_rerun_process: bool
-) -> tuple[str, bool]:
-    """Ensure rerun server exists; return (grpc_uri, process_owned_by_this_instance)."""
-    global _RERUN_SERVER_PROCESS
+def _ensure_rerun_server(app_id: str, bind_address: str, grpc_port: int, web_port: int) -> tuple[str, bool]:
+    """Resolve rerun endpoint and whether viewer should start web/grpc server."""
+    del app_id
     connect_host = _normalize_host(bind_address)
-    grpc_uri = f"rerun+http://{connect_host}:{int(grpc_port)}/proxy"
+    expected_uri = f"rerun+http://{connect_host}:{int(grpc_port)}/proxy"
 
     if _is_port_open(grpc_port, host=connect_host):
-        return grpc_uri, False
+        # Reuse existing endpoint; do not create a new server here.
+        return expected_uri, False
 
     if not _is_port_free(web_port, host=connect_host):
-        pid = _listening_rerun_pid(web_port)
-        if pid is not None and auto_kill_stale_rerun_process:
-            logger.info("[RerunVisualizer] Terminating stale rerun process on web port %s (pid=%s).", web_port, pid)
-            _terminate_pid(pid)
-            time.sleep(0.1)
-        if not _is_port_free(web_port, host=connect_host):
-            if pid is not None and not auto_kill_stale_rerun_process:
-                raise RuntimeError(
-                    f"Rerun web port {web_port} is in use by rerun pid={pid}; "
-                    "set auto_kill_stale_rerun_process=True to allow cleanup."
-                )
-            raise RuntimeError(f"Rerun web port {web_port} is in use and not owned by a detectable rerun process.")
+        raise RuntimeError(f"Rerun web port {web_port} is in use. Free the port or choose a different `web_port`.")
 
-    rerun_bin = shutil.which("rerun")
-    if rerun_bin is None:
-        raise RuntimeError("'rerun' binary not found in PATH.")
-
-    cmd = [
-        rerun_bin,
-        "--serve-web",
-        "--bind",
-        bind_address,
-        "--port",
-        str(int(grpc_port)),
-        "--web-viewer-port",
-        str(int(web_port)),
-        "--memory-limit",
-        "25%",
-    ]
-
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    _RERUN_SERVER_PROCESS = proc
-    deadline = time.time() + 6.0
-    while time.time() < deadline:
-        if proc.poll() is not None:
-            stderr_txt = ""
-            stdout_txt = ""
-            with contextlib.suppress(Exception):
-                stdout_txt, stderr_txt = proc.communicate(timeout=0.2)
-            _RERUN_SERVER_PROCESS = None
-            detail = "\n".join(
-                part
-                for part in [
-                    f"stderr:\n{stderr_txt.strip()}" if stderr_txt.strip() else "",
-                    f"stdout:\n{stdout_txt.strip()}" if stdout_txt.strip() else "",
-                ]
-                if part
-            ).strip()
-            raise RuntimeError(detail or "rerun server exited before opening gRPC port.")
-        if _is_port_open(grpc_port, host=connect_host):
-            return grpc_uri, True
-        time.sleep(0.1)
-
-    _stop_managed_rerun_server()
-    raise RuntimeError(f"Timed out waiting for rerun gRPC port {connect_host}:{grpc_port}.")
+    # No existing gRPC server: NewtonViewerRerun should start and own it.
+    return expected_uri, True
 
 
 def _open_rerun_web_viewer(host: str, web_port: int, connect_to: str) -> None:
-    url = f"http://{host}:{int(web_port)}/?url={quote(connect_to, safe='')}"
+    """Open rerun web UI and prefill endpoint connection URL."""
+    url = _rerun_web_viewer_url(host, web_port, connect_to)
     try:
         if not webbrowser.open_new_tab(url):
             logger.info("[RerunVisualizer] Could not auto-open browser tab. Open manually: %s", url)
@@ -176,17 +80,25 @@ def _open_rerun_web_viewer(host: str, web_port: int, connect_to: str) -> None:
         logger.info("[RerunVisualizer] Could not auto-open browser tab. Open manually: %s", url)
 
 
+def _rerun_web_viewer_url(host: str, web_port: int, connect_to: str) -> str:
+    """Return rerun web UI URL with prefilled endpoint."""
+    return f"http://{host}:{int(web_port)}/?url={quote(connect_to, safe='')}"
+
+
 class NewtonViewerRerun(ViewerRerun):
     """Wrapper around Newton's ViewerRerun with rendering pause controls."""
 
     def __init__(self, *args, **kwargs):
+        """Initialize viewer wrapper and Isaac Lab pause state."""
         super().__init__(*args, **kwargs)
         self._paused_rendering = False
 
     def is_rendering_paused(self) -> bool:
+        """Return whether rendering is paused by viewer controls."""
         return self._paused_rendering
 
     def _render_ui(self):
+        """Extend base UI with Isaac Lab rendering pause toggle."""
         super()._render_ui()
 
         if not self._has_imgui:
@@ -205,6 +117,11 @@ class RerunVisualizer(BaseVisualizer):
     """Rerun visualizer for Isaac Lab."""
 
     def __init__(self, cfg: RerunVisualizerCfg):
+        """Initialize Rerun visualizer state.
+
+        Args:
+            cfg: Rerun visualizer configuration.
+        """
         super().__init__(cfg)
         self.cfg: RerunVisualizerCfg = cfg
         self._viewer: NewtonViewerRerun | None = None
@@ -216,6 +133,11 @@ class RerunVisualizer(BaseVisualizer):
         self._last_camera_pose: tuple[tuple[float, float, float], tuple[float, float, float]] | None = None
 
     def initialize(self, scene_data_provider: BaseSceneDataProvider) -> None:
+        """Initialize rerun viewer and bind scene data provider.
+
+        Args:
+            scene_data_provider: Scene data provider used to fetch model/state data.
+        """
         if self._is_initialized:
             return
         if scene_data_provider is None:
@@ -237,28 +159,35 @@ class RerunVisualizer(BaseVisualizer):
         grpc_port = int(self.cfg.grpc_port)
         web_port = int(self.cfg.web_port)
         bind_address = self.cfg.bind_address or "0.0.0.0"
-        rerun_address, owns_server = _ensure_rerun_server(
+        rerun_address, start_server_in_viewer = _ensure_rerun_server(
+            app_id=self.cfg.app_id,
             bind_address=bind_address,
             grpc_port=grpc_port,
             web_port=web_port,
-            auto_kill_stale_rerun_process=self.cfg.auto_kill_stale_rerun_process,
         )
-        if not owns_server:
+        if not start_server_in_viewer:
             logger.info("[RerunVisualizer] Reusing existing rerun server at %s.", rerun_address)
-        if self.cfg.open_browser:
-            _open_rerun_web_viewer(_normalize_host(bind_address), web_port, rerun_address)
 
+        viewer_address = None if start_server_in_viewer else rerun_address
         self._viewer = NewtonViewerRerun(
             app_id=self.cfg.app_id,
-            address=rerun_address,
-            serve_web_viewer=False,
+            address=viewer_address,
+            serve_web_viewer=start_server_in_viewer,
             web_port=web_port,
             grpc_port=grpc_port,
             keep_historical_data=self.cfg.keep_historical_data,
             keep_scalar_history=self.cfg.keep_scalar_history,
             record_to_rrd=self.cfg.record_to_rrd,
         )
-        self._viewer.set_model(self._model)
+        if start_server_in_viewer:
+            rerun_address = getattr(self._viewer, "_grpc_server_uri", rerun_address)
+        viewer_host = _normalize_host(bind_address)
+        viewer_url = _rerun_web_viewer_url(viewer_host, web_port, rerun_address)
+        if self.cfg.open_browser and not start_server_in_viewer:
+            _open_rerun_web_viewer(viewer_host, web_port, rerun_address)
+        self._viewer.set_model(self._model, max_worlds=self.cfg.max_worlds)
+        # Preserve simulation world positions (env_spacing) rather than adding viewer-side offsets.
+        self._viewer.set_world_offsets((0.0, 0.0, 0.0))
         self._apply_camera_pose(self._resolve_initial_camera_pose())
         self._viewer.up_axis = 2
         self._viewer.scaling = 1.0
@@ -273,12 +202,12 @@ class RerunVisualizer(BaseVisualizer):
                 ("camera_target", self.cfg.camera_target),
                 ("camera_source", self.cfg.camera_source),
                 ("num_visualized_envs", num_visualized_envs),
-                ("endpoint", f"http://{_normalize_host(bind_address)}:{web_port}"),
+                ("endpoint", f"http://{viewer_host}:{web_port}"),
+                ("viewer_url", viewer_url),
                 ("bind_address", bind_address),
                 ("grpc_port", grpc_port),
                 ("web_port", web_port),
                 ("open_browser", self.cfg.open_browser),
-                ("auto_kill_stale_rerun_process", self.cfg.auto_kill_stale_rerun_process),
                 ("record_to_rrd", self.cfg.record_to_rrd or "<none>"),
             ],
         )
@@ -287,6 +216,11 @@ class RerunVisualizer(BaseVisualizer):
         atexit.register(self.close)
 
     def step(self, dt: float) -> None:
+        """Advance visualization by one simulation step.
+
+        Args:
+            dt: Simulation time-step in seconds.
+        """
         if not self._is_initialized or self._is_closed or self._viewer is None:
             return
 
@@ -309,6 +243,7 @@ class RerunVisualizer(BaseVisualizer):
             self._viewer.end_frame()
 
     def close(self) -> None:
+        """Close viewer/session resources."""
         if self._is_closed:
             return
 
@@ -324,10 +259,14 @@ class RerunVisualizer(BaseVisualizer):
             rr.disconnect()
         except Exception as exc:
             logger.warning("[RerunVisualizer] Failed while disconnecting rerun: %s", exc)
-        _stop_managed_rerun_server()
         self._is_closed = True
 
     def is_running(self) -> bool:
+        """Return whether the visualizer should continue stepping.
+
+        Returns:
+            ``True`` while the visualizer is active, otherwise ``False``.
+        """
         if not self._is_initialized or self._is_closed:
             return False
         if self._viewer is None:
@@ -335,6 +274,7 @@ class RerunVisualizer(BaseVisualizer):
         return self._viewer.is_running()
 
     def _resolve_initial_camera_pose(self) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+        """Resolve initial camera pose from config or USD camera path."""
         if self.cfg.camera_source == "usd_path":
             pose = self._resolve_camera_pose_from_usd_path(self.cfg.camera_usd_path)
             if pose is not None:
@@ -342,6 +282,11 @@ class RerunVisualizer(BaseVisualizer):
         return self.cfg.camera_position, self.cfg.camera_target
 
     def _apply_camera_pose(self, pose: tuple[tuple[float, float, float], tuple[float, float, float]]) -> None:
+        """Apply camera pose to rerun's 3D view controls.
+
+        Args:
+            pose: Camera eye and target tuples.
+        """
         if self._viewer is None:
             return
         cam_pos, cam_target = pose
@@ -361,6 +306,7 @@ class RerunVisualizer(BaseVisualizer):
         self._last_camera_pose = (cam_pos, cam_target)
 
     def _update_camera_from_usd_path(self) -> None:
+        """Refresh camera pose from configured USD camera path when it changes."""
         pose = self._resolve_camera_pose_from_usd_path(self.cfg.camera_usd_path)
         if pose is None:
             return
@@ -369,15 +315,22 @@ class RerunVisualizer(BaseVisualizer):
         self._apply_camera_pose(pose)
 
     def supports_markers(self) -> bool:
+        """Rerun backend currently does not expose Isaac Lab marker primitives."""
         return False
 
     def supports_live_plots(self) -> bool:
+        """Rerun backend currently does not expose Isaac Lab live-plot widgets."""
         return False
 
     def is_training_paused(self) -> bool:
+        """Return whether training is paused.
+
+        Rerun viewer exposes rendering pause only.
+        """
         return False
 
     def is_rendering_paused(self) -> bool:
+        """Return whether rendering is paused from viewer controls."""
         if not self._is_initialized or self._viewer is None:
             return False
         return self._viewer.is_rendering_paused()

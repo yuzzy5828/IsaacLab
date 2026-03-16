@@ -9,7 +9,7 @@ What These Features Do
 
 **Fabric Cloning**
 
-- Clones environments using Fabric library (see `USD Fabric USDRT Documentation <https://docs.omniverse.nvidia.com/kit/docs/usdrt/latest/docs/usd_fabric_usdrt.html>`_)
+- Clones environments using Fabric library (see `USD Fabric USDRT Documentation <https://docs.omniverse.nvidia.com/kit/docs/usdrt.scenegraph/latest/usd_fabric_usdrt.html>`_)
 - Partially supported and enabled by default on some environments (see `Limitations`_ section for a list)
 
 **Stage in Memory**
@@ -22,6 +22,7 @@ Usage Examples
 --------------
 
 Fabric cloning can be toggled by setting the :attr:`isaaclab.scene.InteractiveSceneCfg.clone_in_fabric` flag.
+For a full guide on the template-based cloning system, see :doc:`cloning`.
 
 **Using Fabric Cloning with a RL environment**
 

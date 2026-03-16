@@ -109,6 +109,20 @@ class DirectRLEnv(gym.Env):
         else:
             raise RuntimeError("Simulation context already exists. Cannot create a new one.")
 
+        # From this point on, if __init__ fails we must tear down the SimulationContext
+        # singleton so that callers (tests, training loops) can retry or proceed.
+        try:
+            self._init_sim(render_mode, **kwargs)
+        except Exception:
+            self.sim.clear_instance()
+            raise
+
+    def _init_sim(self, render_mode: str | None = None, **kwargs):
+        """Complete environment initialization after the SimulationContext is created.
+
+        Separated from :meth:`__init__` so that the caller can tear down the
+        :class:`SimulationContext` singleton if this method raises.
+        """
         # make sure torch is running on the correct device
         if "cuda" in self.device:
             torch.cuda.set_device(self.device)
@@ -141,7 +155,10 @@ class DirectRLEnv(gym.Env):
         # viewport is not available in other rendering modes so the function will throw a warning
         # FIXME: This needs to be fixed in the future when we unify the UI functionalities even for
         # non-rendering modes.
-        if self.sim.has_gui:
+        # Initialize when GUI is available OR when visualizers are active (headless rendering)
+        # Visualizers support camera updates via sim.set_camera_view() which forwards to all active visualizers
+        has_visualizers = bool(self.sim.get_setting("/isaaclab/visualizer"))
+        if self.sim.has_gui or has_visualizers:
             self.viewport_camera_controller = ViewportCameraController(self, self.cfg.viewer)
         else:
             self.viewport_camera_controller = None
@@ -243,7 +260,10 @@ class DirectRLEnv(gym.Env):
 
     def __del__(self):
         """Cleanup for the environment."""
-        self.close()
+        import sys
+
+        if not sys.is_finalizing():
+            self.close()
 
     """
     Properties.

@@ -62,12 +62,17 @@ def _suppress_viser_startup_logs(enabled: bool):
 
 def _open_viser_web_viewer(port: int) -> None:
     """Open the local viser web UI in a browser."""
-    url = f"http://localhost:{int(port)}"
+    url = _viser_web_viewer_url(port)
     try:
         if not webbrowser.open_new_tab(url):
             logger.info("[ViserVisualizer] Could not auto-open browser tab. Open manually: %s", url)
     except Exception:
         logger.info("[ViserVisualizer] Could not auto-open browser tab. Open manually: %s", url)
+
+
+def _viser_web_viewer_url(port: int) -> str:
+    """Return local viser web UI URL."""
+    return f"http://localhost:{int(port)}"
 
 
 class NewtonViewerViser(ViewerViser):
@@ -82,6 +87,16 @@ class NewtonViewerViser(ViewerViser):
         record_to_viser: str | None = None,
         metadata: dict | None = None,
     ):
+        """Initialize Newton-backed viser viewer wrapper.
+
+        Args:
+            port: HTTP port for viser server.
+            label: Optional viewer label.
+            verbose: Whether to keep verbose startup output enabled.
+            share: Whether to enable sharing/tunneling.
+            record_to_viser: Optional recording destination.
+            metadata: Optional metadata attached to the viewer.
+        """
         _disable_viser_runtime_client_rebuild_if_bundled()
         super().__init__(
             port=port,
@@ -97,6 +112,11 @@ class ViserVisualizer(BaseVisualizer):
     """Viser web-based visualizer backed by Newton's ViewerViser."""
 
     def __init__(self, cfg: ViserVisualizerCfg):
+        """Initialize Viser visualizer state.
+
+        Args:
+            cfg: Viser visualizer configuration.
+        """
         super().__init__(cfg)
         self.cfg: ViserVisualizerCfg = cfg
         self._viewer: NewtonViewerViser | None = None
@@ -109,6 +129,11 @@ class ViserVisualizer(BaseVisualizer):
         self._pending_camera_pose: tuple[tuple[float, float, float], tuple[float, float, float]] | None = None
 
     def initialize(self, scene_data_provider: BaseSceneDataProvider) -> None:
+        """Initialize viewer resources and bind scene data provider.
+
+        Args:
+            scene_data_provider: Scene data provider used to fetch model/state data.
+        """
         if self._is_initialized:
             logger.debug("[ViserVisualizer] initialize() called while already initialized.")
             return
@@ -132,6 +157,7 @@ class ViserVisualizer(BaseVisualizer):
         self._active_record_path = self.cfg.record_to_viser
         self._create_viewer(record_to_viser=self.cfg.record_to_viser, metadata=metadata)
         num_visualized_envs = len(self._env_ids) if self._env_ids is not None else int(metadata.get("num_envs", 0))
+        viewer_url = _viser_web_viewer_url(self.cfg.port)
         self._log_initialization_table(
             logger=logger,
             title="ViserVisualizer Configuration",
@@ -141,12 +167,18 @@ class ViserVisualizer(BaseVisualizer):
                 ("camera_source", self.cfg.camera_source),
                 ("num_visualized_envs", num_visualized_envs),
                 ("port", self.cfg.port),
+                ("viewer_url", viewer_url),
                 ("record_to_viser", self.cfg.record_to_viser or "<none>"),
             ],
         )
         self._is_initialized = True
 
     def step(self, dt: float) -> None:
+        """Advance visualization by one simulation step.
+
+        Args:
+            dt: Simulation time-step in seconds.
+        """
         if not self._is_initialized or self._viewer is None or self._scene_data_provider is None:
             return
 
@@ -161,6 +193,7 @@ class ViserVisualizer(BaseVisualizer):
         self._viewer.end_frame()
 
     def close(self) -> None:
+        """Close viewer resources and finalize optional recording."""
         if not self._is_initialized:
             return
         try:
@@ -175,6 +208,11 @@ class ViserVisualizer(BaseVisualizer):
         self._pending_camera_pose = None
 
     def is_running(self) -> bool:
+        """Return whether the visualizer should continue stepping.
+
+        Returns:
+            ``True`` while the visualizer is active, otherwise ``False``.
+        """
         if not self._is_initialized or self._is_closed:
             return False
         if self._viewer is None:
@@ -182,15 +220,27 @@ class ViserVisualizer(BaseVisualizer):
         return self._viewer.is_running()
 
     def is_training_paused(self) -> bool:
+        """Return whether training is paused.
+
+        Viser backend does not currently expose a training pause control.
+        """
         return False
 
     def supports_markers(self) -> bool:
+        """Viser backend currently does not expose Isaac Lab marker primitives."""
         return False
 
     def supports_live_plots(self) -> bool:
+        """Viser backend currently does not expose Isaac Lab live-plot widgets."""
         return False
 
     def _create_viewer(self, record_to_viser: str | None, metadata: dict | None = None) -> None:
+        """Create Newton-backed Viser viewer and apply initial camera.
+
+        Args:
+            record_to_viser: Optional output path for viser recording.
+            metadata: Optional metadata passed to viewer.
+        """
         if self._model is None:
             raise RuntimeError("Viser visualizer requires a Newton model.")
 
@@ -205,12 +255,15 @@ class ViserVisualizer(BaseVisualizer):
             )
         max_worlds = self.cfg.max_worlds
         self._viewer.set_model(self._model, max_worlds=max_worlds)
+        # Preserve simulation world positions (env_spacing) rather than adding viewer-side offsets.
+        self._viewer.set_world_offsets((0.0, 0.0, 0.0))
         if self.cfg.open_browser:
             _open_viser_web_viewer(self.cfg.port)
         self._set_viser_camera_view(self._resolve_initial_camera_pose())
         self._sim_time = 0.0
 
     def _close_viewer(self, finalize_viser: bool = False) -> None:
+        """Close viewer and log recording output when requested."""
         if self._viewer is None:
             return
         self._viewer.close()
@@ -223,6 +276,7 @@ class ViserVisualizer(BaseVisualizer):
         self._viewer = None
 
     def _resolve_initial_camera_pose(self) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+        """Resolve initial camera pose from config or USD camera path."""
         if self.cfg.camera_source == "usd_path":
             pose = self._resolve_camera_pose_from_usd_path(self.cfg.camera_usd_path)
             if pose is not None:
@@ -234,6 +288,11 @@ class ViserVisualizer(BaseVisualizer):
         return self.cfg.camera_position, self.cfg.camera_target
 
     def _try_apply_viser_camera_view(self, pose: tuple[tuple[float, float, float], tuple[float, float, float]]) -> bool:
+        """Try applying camera pose to active viser clients.
+
+        Returns:
+            ``True`` if at least one client camera was updated, otherwise ``False``.
+        """
         if self._viewer is None:
             return False
         server = getattr(self._viewer, "_server", None)
@@ -265,6 +324,7 @@ class ViserVisualizer(BaseVisualizer):
         return applied
 
     def _set_viser_camera_view(self, pose: tuple[tuple[float, float, float], tuple[float, float, float]]) -> None:
+        """Apply or defer camera pose update depending on client readiness."""
         if self._try_apply_viser_camera_view(pose):
             self._last_camera_pose = pose
             self._pending_camera_pose = None
@@ -272,6 +332,7 @@ class ViserVisualizer(BaseVisualizer):
             self._pending_camera_pose = pose
 
     def _apply_pending_camera_pose(self) -> None:
+        """Apply deferred camera pose once client cameras are available."""
         if self._pending_camera_pose is None:
             return
         if self._try_apply_viser_camera_view(self._pending_camera_pose):
@@ -279,6 +340,7 @@ class ViserVisualizer(BaseVisualizer):
             self._pending_camera_pose = None
 
     def _update_camera_from_usd_path(self) -> None:
+        """Refresh camera pose from configured USD camera path when it changes."""
         pose = self._resolve_camera_pose_from_usd_path(self.cfg.camera_usd_path)
         if pose is None:
             return

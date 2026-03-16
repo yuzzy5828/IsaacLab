@@ -1,6 +1,24 @@
 Changelog
 ---------
 
+1.2.3 (2026-03-12)
+~~~~~~~~~~~~~~~~~~~
+
+Added
+^^^^^
+
+* Add nvidia-srl-usd-to-urdf dependency to isaaclab_mimic extension.
+
+
+1.2.2 (2026-03-10)
+~~~~~~~~~~~~~~~~~~~
+
+Added
+^^^^^
+
+* Add h5py dependency to isaaclab_mimic extension.
+
+
 1.2.1 (2026-02-25)
 ~~~~~~~~~~~~~~~~~~~
 

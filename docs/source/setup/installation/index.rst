@@ -20,13 +20,29 @@ Local Installation
    :alt: Windows 11
 
 
-Isaac Lab installation is available for Windows and Linux. Since it is built on top of Isaac Sim,
-it is required to install Isaac Sim before installing Isaac Lab. This guide explains the
-recommended installation methods for both Isaac Sim and Isaac Lab.
+Isaac Lab installation is available for Windows and Linux. This guide explains the recommended
+installation methods.
+
+.. note::
+
+   **Isaac Lab 3.0 supports kit-less installation.** You can install and use Isaac Lab with the
+   Newton physics backend *without* installing Isaac Sim. Simply clone Isaac Lab and run:
+
+   .. code-block:: bash
+
+      ./isaaclab.sh --install   # or ./isaaclab.sh -i
+
+   This installs the core Isaac Lab packages and the Newton physics backend. Isaac Sim is **not**
+   required for this mode. See `Kit-less Installation`_ below for which features are available
+   without Isaac Sim.
+
+   When you need full simulation features — including PhysX, ROS, URDF/MJCF
+   importers — install Isaac Sim via pip (see the
+   :doc:`pip_installation` guide).
 
 .. caution::
 
-   We have dropped support for Isaac Sim versions 4.5.0 and below. We recommend using the latest
+   We have dropped support for Isaac Sim versions 5.1.0 and below. We recommend using the latest
    Isaac Sim 6.0.0 release to benefit from the latest features and improvements.
 
    For more information, please refer to the
@@ -52,7 +68,6 @@ it essential to use the same Python version when installing Isaac Lab.
 The required Python version is as follows:
 
 - For Isaac Sim 6.X, the required Python version is 3.12.
-- For Isaac Sim 5.X, the required Python version is 3.11.
 
 
 Driver Requirements
@@ -95,13 +110,13 @@ Other notable limitations with respect to Isaac Lab include...
 
 .. note::
 
-   **Build prerequisites on aarch64:** Some Python packages (notably ``imgui-bundle``) do not ship
+   **Build prerequisites on aarch64:** Some Python packages (notably ``imgui-bundle`` and ``quadprog``) do not ship
    pre-built wheels for aarch64 and are compiled from source during installation. This requires
-   OpenGL and X11 development headers to be installed on the system:
+   Python 3.12, OpenGL, and X11 development headers to be installed on the system:
 
    .. code-block:: bash
 
-      sudo apt install libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev
+      sudo apt install python3.12-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev
 
    Without these packages, the build will fail with a CMake error about missing ``OPENGL_opengl_LIBRARY``,
    ``OPENGL_glx_LIBRARY``, and ``OPENGL_INCLUDE_DIR``.
@@ -115,47 +130,183 @@ to resolve installation issues in Linux.
 You can use `Isaac Sim Compatibility Checker <https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_workstation.html#isaac-sim-compatibility-checker>`_
 to automatically check if the above requirements are met for running Isaac Sim on your system.
 
-Quick Start (Recommended)
--------------------------
+.. _kitless-installation:
 
-For most users, the simplest and fastest way to install Isaac Lab is by following the
-:doc:`pip_installation` guide.
+Kit-less Installation
+---------------------
 
-This method will install Isaac Sim via pip and Isaac Lab through its source code.
+Isaac Lab can be installed and used **without Isaac Sim** using the kit-less mode. This is the
+fastest way to get started and is ideal for users who only need the Newton physics backend.
+
+.. code-block:: bash
+
+   # Clone Isaac Lab
+   git clone https://github.com/isaac-sim/IsaacLab.git
+   cd IsaacLab
+
+   # Install Isaac Lab (Newton backend, no Isaac Sim required)
+   ./isaaclab.sh --install   # or ./isaaclab.sh -i
+
+   # Kickoff training with Newton physics and Newton visualizer
+   ./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py \
+   --task=Isaac-Cartpole-Direct-v0 \
+   --num_envs=16 --max_iterations=10 \
+   presets=newton --visualizer newton
+
+
+**Features available in kit-less mode (Newton backend, no Isaac Sim):**
+
+- Newton physics simulation (GPU-accelerated, including MuJoCo-Warp solver)
+- All manager-based and direct RL environments that support Newton
+- RL training with SKRL, RSL-RL, and other frameworks
+- Robot assets compatible with Newton
+
+**Features that require Isaac Sim:**
+
+- PhysX physics backend
+- Isaac Sim RTX rendering (not ovrtx)
+- Kit visualizer
+- Photorealistic rendering workflows
+- ROS / ROS2 integration
+- URDF and MJCF importers (GUI-based)
+- Deformable objects and surface gripper (PhysX-only)
+- Teleoperation and imitation learning workflows
+
+To install Isaac Sim, use the pip method described in :doc:`pip_installation`.
+
+
+.. _installation-selective-install:
+
+Selective Install
+-----------------
+
+If you want a minimal environment, ``./isaaclab.sh -i`` accepts comma-separated
+sub-package names:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - What it does
+   * - ``isaacsim``
+     - Install Isaac Sim pip package
+   * - ``newton``
+     - Install Newton physics + Newton visualizer
+   * - ``physx``
+     - Install PhysX physics runtime
+   * - ``ovrtx``
+     - Install OVRTX renderer runtime
+   * - ``tasks``
+     - Install built-in task environments
+   * - ``assets``
+     - Install robot/object configurations
+   * - ``visualizers``
+     - Install all visualizer backends
+   * - ``rsl_rl``
+     - Install RSL-RL framework
+   * - ``skrl``
+     - Install skrl framework
+   * - ``sb3``
+     - Install Stable Baselines3 framework
+   * - ``rl_games``
+     - Install rl_games framework
+   * - ``robomimic``
+     - Install robomimic framework
+   * - ``none``
+     - Install only core ``isaaclab`` package
+
+Examples:
+
+.. code-block:: bash
+
+   # Minimal Newton setup
+   ./isaaclab.sh -i newton,tasks,assets
+
+   # Newton with OVRTX and RSL-RL only
+   ./isaaclab.sh -i newton,tasks,assets,ovrtx,rsl_rl
+
+   # Full Kit install with skrl
+   ./isaaclab.sh -i isaacsim,skrl
+
+
+.. _installation-ovrtx:
+
+OVRTX Rendering
+---------------
+
+OVRTX provides GPU-accelerated rendering for vision tasks without Kit.
+
+.. code-block:: bash
+
+   ./isaaclab.sh -i ov[ovrtx]
+
+   export LD_PRELOAD=$(python -c "import ovrtx, pathlib; print(pathlib.Path(ovrtx.__file__).parent / 'bin/plugins/libcarb.so')")
+
+   ./isaaclab.sh -p scripts/benchmarks/benchmark_rsl_rl.py \
+     --task Isaac-Repose-Cube-Shadow-Vision-Benchmark-Direct-v0 \
+     --headless --enable_cameras --num_envs 16 --max_iterations 10 \
+     presets=newton,ovrtx_renderer,simple_shading_diffuse_mdl
+
+
+Running Installation Tests
+--------------------------
+
+.. code-block:: bash
+
+   ./isaaclab.sh -p -m pytest source/isaaclab/test/cli/test_cli_utils.py -v
+
+
+Isaac Sim Installation
+----------------------
+
+For most users, the simplest and fastest way to install Isaac Lab with full Isaac Sim support
+is by following the :doc:`pip_installation` guide. We recommend using **uv** as the package
+manager for the fastest and most reliable installation experience.
+
+This method installs Isaac Sim via pip and Isaac Lab from source.
 If you are new to Isaac Lab, start here.
 
 
 Choosing an Installation Method
--------------------------------
+--------------------------------
 
 Different workflows require different installation methods.
 Use this table to decide:
 
-+-------------------+------------------------------+------------------------------+---------------------------+------------+
-| Method            | Isaac Sim                    | Isaac Lab                    | Best For                  | Difficulty |
-+===================+==============================+==============================+===========================+============+
-| **Recommended**   | |:package:| pip install      | |:floppy_disk:| source (git) | Beginners, standard use   | Easy       |
-+-------------------+------------------------------+------------------------------+---------------------------+------------+
-| Binary + Source   | |:inbox_tray:| binary        | |:floppy_disk:| source (git) | Users preferring binary   | Easy       |
-|                   | download                     |                              | install of Isaac Sim      |            |
-+-------------------+------------------------------+------------------------------+---------------------------+------------+
-| Full Source Build | |:floppy_disk:| source (git) | |:floppy_disk:| source (git) | Developers modifying both | Advanced   |
-+-------------------+------------------------------+------------------------------+---------------------------+------------+
-| Pip Only          | |:package:| pip install      | |:package:| pip install      | External extensions only  | Special    |
-|                   |                              |                              | (no training/examples)    | case       |
-+-------------------+------------------------------+------------------------------+---------------------------+------------+
-| Docker            | |:whale:| Docker             | |:floppy_disk:| source (git) | Docker users              | Advanced   |
-+-------------------+------------------------------+------------------------------+---------------------------+------------+
++---------------------+------------------------------+------------------------------+-------------------------------+------------+
+| Method              | Isaac Sim                    | Isaac Lab                    | Best For                      | Difficulty |
++=====================+==============================+==============================+===============================+============+
+| **Kit-less**        | |:x:| not required           | |:floppy_disk:| source (git) | Newton-only, fastest start    | Easiest    |
++---------------------+------------------------------+------------------------------+-------------------------------+------------+
+| **Pip (uv)**        | |:package:| pip install      | |:floppy_disk:| source (git) | Most users, full features     | Easy       |
+| **(Recommended)**   |                              |                              |                               |            |
++---------------------+------------------------------+------------------------------+-------------------------------+------------+
+| Binary + Source     | |:inbox_tray:| binary        | |:floppy_disk:| source (git) | Users preferring binary       | Easy       |
+|                     | download                     |                              | install of Isaac Sim          |            |
++---------------------+------------------------------+------------------------------+-------------------------------+------------+
+| Full Source Build   | |:floppy_disk:| source (git) | |:floppy_disk:| source (git) | Developers modifying both     | Advanced   |
++---------------------+------------------------------+------------------------------+-------------------------------+------------+
+| Pip Only            | |:package:| pip install      | |:package:| pip install      | External extensions only      | Special    |
+|                     |                              |                              | (no training/examples)        | case       |
++---------------------+------------------------------+------------------------------+-------------------------------+------------+
+| Docker              | |:whale:| Docker             | |:floppy_disk:| source (git) | Docker users                  | Advanced   |
++---------------------+------------------------------+------------------------------+-------------------------------+------------+
 
 Next Steps
 ----------
 
 Once you've reviewed the installation methods, continue with the guide that matches your workflow:
 
-- |:smiley:| :doc:`pip_installation`
+- |:rocket:| `Kit-less Installation`_ (above)
 
-  - Install Isaac Sim via pip and Isaac Lab from source.
-  - Best for beginners and most users.
+  - Install Isaac Lab without Isaac Sim.
+  - Uses the Newton physics backend.
+  - Best for getting started immediately or when Isaac Sim is not needed.
+
+- |:smiley:| :doc:`pip_installation` **(Recommended for full features)**
+
+  - Install Isaac Sim via pip (preferably with **uv**) and Isaac Lab from source.
+  - Best for most users who need full simulation capabilities.
 
 - :doc:`binaries_installation`
 

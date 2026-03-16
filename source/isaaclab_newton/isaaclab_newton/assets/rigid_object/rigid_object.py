@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import logging
 import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
@@ -21,6 +20,7 @@ from pxr import UsdPhysics
 import isaaclab.sim as sim_utils
 import isaaclab.utils.string as string_utils
 from isaaclab.assets.rigid_object.base_rigid_object import BaseRigidObject
+from isaaclab.physics import PhysicsEvent
 from isaaclab.utils.wrench_composer import WrenchComposer
 
 from isaaclab_newton.assets import kernels as shared_kernels
@@ -30,9 +30,6 @@ from .rigid_object_data import RigidObjectData
 
 if TYPE_CHECKING:
     from isaaclab.assets.rigid_object.rigid_object_cfg import RigidObjectCfg
-
-# import logger
-logger = logging.getLogger(__name__)
 
 
 class RigidObject(BaseRigidObject):
@@ -434,7 +431,7 @@ class RigidObject(BaseRigidObject):
             dim=env_ids.shape[0],
             inputs=[
                 root_pose,
-                self.data.body_com_pose_b,
+                self.data.body_com_pos_b,
                 env_ids,
             ],
             outputs=[
@@ -485,7 +482,7 @@ class RigidObject(BaseRigidObject):
             dim=root_pose.shape[0],
             inputs=[
                 root_pose,
-                self.data.body_com_pose_b,
+                self.data.body_com_pos_b,
                 env_mask,
             ],
             outputs=[
@@ -641,7 +638,7 @@ class RigidObject(BaseRigidObject):
             dim=env_ids.shape[0],
             inputs=[
                 root_velocity,
-                self.data.body_com_pose_b,
+                self.data.body_com_pos_b,
                 self.data.root_link_pose_w,
                 env_ids,
                 1,
@@ -656,9 +653,12 @@ class RigidObject(BaseRigidObject):
             ],
             device=self.device,
         )
-        self.data._root_link_state_w.timestamp = -1.0
-        self.data._root_state_w.timestamp = -1.0
-        self.data._root_com_state_w.timestamp = -1.0
+        if self.data._root_link_state_w is not None:
+            self.data._root_link_state_w.timestamp = -1.0
+        if self.data._root_state_w is not None:
+            self.data._root_state_w.timestamp = -1.0
+        if self.data._root_com_state_w is not None:
+            self.data._root_com_state_w.timestamp = -1.0
 
     def write_root_link_velocity_to_sim_mask(
         self,
@@ -693,7 +693,7 @@ class RigidObject(BaseRigidObject):
             dim=root_velocity.shape[0],
             inputs=[
                 root_velocity,
-                self.data.body_com_pose_b,
+                self.data.body_com_pos_b,
                 self.data.root_link_pose_w,
                 env_mask,
                 1,
@@ -708,9 +708,12 @@ class RigidObject(BaseRigidObject):
             ],
             device=self.device,
         )
-        self.data._root_link_state_w.timestamp = -1.0
-        self.data._root_state_w.timestamp = -1.0
-        self.data._root_com_state_w.timestamp = -1.0
+        if self.data._root_link_state_w is not None:
+            self.data._root_link_state_w.timestamp = -1.0
+        if self.data._root_state_w is not None:
+            self.data._root_state_w.timestamp = -1.0
+        if self.data._root_com_state_w is not None:
+            self.data._root_com_state_w.timestamp = -1.0
 
     """
     Operations - Setters.
@@ -986,8 +989,6 @@ class RigidObject(BaseRigidObject):
     """
 
     def _initialize_impl(self):
-        # obtain global simulation view
-        self._physics_sim_view = SimulationManager.get_physics_sim_view()
         # obtain the first prim in the regex expression (all others are assumed to be a copy of this)
         template_prim = sim_utils.find_first_matching_prim(self.cfg.prim_path)
         if template_prim is None:
@@ -1030,20 +1031,21 @@ class RigidObject(BaseRigidObject):
         root_prim_path = root_prims[0].GetPath().pathString
         root_prim_path_expr = self.cfg.prim_path + root_prim_path[len(template_prim_path) :]
         # -- object view
-        self._root_view = self._physics_sim_view.create_rigid_body_view(root_prim_path_expr.replace(".*", "*"))
-
-        # check if the rigid body was created
-        if self.root_view._backend is None:
-            raise RuntimeError(f"Failed to create rigid body at: {self.cfg.prim_path}. Please check PhysX logs.")
-
-        # log information about the rigid body
-        logger.info(f"Rigid body initialized at: {self.cfg.prim_path} with root '{root_prim_path_expr}'.")
-        logger.info(f"Number of instances: {self.num_instances}")
-        logger.info(f"Number of bodies: {self.num_bodies}")
-        logger.info(f"Body names: {self.body_names}")
+        self._root_view = ArticulationView(
+            SimulationManager.get_model(),
+            root_prim_path_expr.replace(".*", "*"),
+            verbose=False,
+        )
 
         # container for data access
         self._data = RigidObjectData(self.root_view, self.device)
+
+        # Register callback to rebind simulation data after a full reset (model/state recreation).
+        self._physics_ready_handle = SimulationManager.register_callback(
+            lambda _: self._data._create_simulation_bindings(),
+            PhysicsEvent.PHYSICS_READY,
+            name=f"rigid_object_rebind_{self.cfg.prim_path}",
+        )
 
         # create buffers
         self._create_buffers()
@@ -1053,6 +1055,13 @@ class RigidObject(BaseRigidObject):
         self.update(0.0)
         # Let the rigid object data know that it is fully instantiated and ready to use.
         self.data.is_primed = True
+
+    def _clear_callbacks(self) -> None:
+        """Clears all registered callbacks, including the physics-ready rebind handle."""
+        super()._clear_callbacks()
+        if hasattr(self, "_physics_ready_handle") and self._physics_ready_handle is not None:
+            self._physics_ready_handle.deregister()
+            self._physics_ready_handle = None
 
     def _create_buffers(self):
         """Create buffers for storing data."""

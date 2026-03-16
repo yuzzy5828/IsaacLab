@@ -81,7 +81,36 @@ def _get_visualizer_types(launcher_args: argparse.Namespace | dict | None) -> se
         return set()
     if not visualizers:
         return set()
+    if isinstance(visualizers, str):
+        # CLI now uses comma-delimited syntax: --visualizer kit,newton,rerun
+        visualizers = [token.strip() for token in visualizers.split(",")]
     return {str(v).strip().lower() for v in visualizers if str(v).strip()}
+
+
+def _compute_visualizer_intent(env_cfg) -> dict[str, bool]:
+    """Compute upstream visualizer intent from ``env_cfg.sim.visualizer_cfgs``."""
+    sim_cfg = getattr(env_cfg, "sim", None)
+    visualizer_cfgs = getattr(sim_cfg, "visualizer_cfgs", None)
+    if visualizer_cfgs is None:
+        return {"has_any_visualizers": False, "has_kit_visualizer": False}
+
+    cfg_list = visualizer_cfgs if isinstance(visualizer_cfgs, list) else [visualizer_cfgs]
+    cfg_list = [cfg for cfg in cfg_list if cfg is not None]
+    has_any = len(cfg_list) > 0
+    has_kit = any(getattr(cfg, "visualizer_type", None) == "kit" for cfg in cfg_list)
+    return {"has_any_visualizers": has_any, "has_kit_visualizer": has_kit}
+
+
+def _set_visualizer_intent_on_launcher_args(
+    launcher_args: argparse.Namespace | dict | None, visualizer_intent: dict[str, bool]
+) -> None:
+    """Attach visualizer intent to launcher args when possible."""
+    if launcher_args is None:
+        return
+    if isinstance(launcher_args, argparse.Namespace):
+        setattr(launcher_args, "visualizer_intent", visualizer_intent)
+    elif isinstance(launcher_args, dict):
+        launcher_args["visualizer_intent"] = visualizer_intent
 
 
 def _is_kit_camera(node) -> bool:
@@ -107,7 +136,7 @@ def compute_kit_requirements(
 
     Args:
         env_cfg: Resolved environment config (e.g. from :func:`resolve_task_config`).
-        launcher_args: Optional CLI args; if ``visualizer=kit`` is set, needs_kit is True.
+        launcher_args: Optional CLI args; if ``--visualizer`` includes ``kit``, needs_kit is True.
 
     Returns:
         (needs_kit, has_kit_cameras, visualizer_types)
@@ -141,6 +170,8 @@ def launch_simulation(
             main()
     """
     needs_kit, has_kit_cameras, visualizer_types = compute_kit_requirements(env_cfg, launcher_args)
+    visualizer_intent = _compute_visualizer_intent(env_cfg)
+    _set_visualizer_intent_on_launcher_args(launcher_args, visualizer_intent)
 
     if needs_kit and has_kit_cameras:
         if isinstance(launcher_args, argparse.Namespace):
@@ -155,6 +186,21 @@ def launch_simulation(
     close_fn: Any = None
 
     if needs_kit:
+        # check if Isaac Sim is installed
+        import importlib.util
+
+        if importlib.util.find_spec("omni.kit") is None:
+            logger.error(
+                "\n[ERROR] Isaac Sim is not installed or not found on PYTHONPATH.\n"
+                "\n"
+                "  This environment requires Isaac Sim and Omniverse Kit.\n"
+                "    PhysX backend and Kit visualizer currently requires Isaac Sim.\n"
+                "\n"
+                "  To fix this, ensure Isaac Sim is installed and available in the current environment.\n"
+                "\n"
+                "  See https://isaac-sim.github.io/IsaacLab/main/source/setup/installation for details.\n"
+            )
+            raise SystemExit(1)
         from isaaclab.app import AppLauncher
 
         app_launcher = AppLauncher(launcher_args)
@@ -165,8 +211,13 @@ def launch_simulation(
         # SimulationContext._get_cli_visualizer_types() can find it.
         from isaaclab.app.settings_manager import get_settings_manager
 
-        visualizer_str = " ".join(sorted(visualizer_types))
-        get_settings_manager().set_string("/isaaclab/visualizer/types", visualizer_str)
+        disable_all = "none" in visualizer_types
+        active_types = [] if disable_all else sorted(visualizer_types)
+        visualizer_str = " ".join(active_types)
+        settings = get_settings_manager()
+        settings.set_string("/isaaclab/visualizer/types", visualizer_str)
+        settings.set_bool("/isaaclab/visualizer/explicit", True)
+        settings.set_bool("/isaaclab/visualizer/disable_all", disable_all)
 
     try:
         yield

@@ -6,6 +6,7 @@
 """Script to train RL agent with RSL-RL."""
 
 import argparse
+import contextlib
 import importlib.metadata as metadata
 import logging
 import os
@@ -19,14 +20,15 @@ import torch
 from packaging import version
 from rsl_rl.runners import DistillationRunner, OnPolicyRunner
 
-from isaaclab.envs import DirectMARLEnvCfg, ManagerBasedRLEnvCfg
+from isaaclab.envs import DirectMARLEnvCfg, DirectRLEnvCfg, ManagerBasedRLEnvCfg
 from isaaclab.utils.dict import print_dict
 from isaaclab.utils.io import dump_yaml
 
-from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper
+from isaaclab_rl.rsl_rl import RslRlBaseRunnerCfg, RslRlVecEnvWrapper, handle_deprecated_rsl_rl_cfg
 
 import isaaclab_tasks  # noqa: F401
-from isaaclab_tasks.utils import add_launcher_args, get_checkpoint_path, launch_simulation, resolve_task_config
+from isaaclab_tasks.utils import add_launcher_args, get_checkpoint_path, launch_simulation
+from isaaclab_tasks.utils.hydra import hydra_task_config
 
 # local imports
 import cli_args  # isort: skip
@@ -34,6 +36,8 @@ import cli_args  # isort: skip
 logger = logging.getLogger(__name__)
 
 # PLACEHOLDER: Extension template (do not remove this comment)
+with contextlib.suppress(ImportError):
+    import isaaclab_tasks_experimental  # noqa: F401
 
 RSL_RL_VERSION = "3.0.1"
 
@@ -85,9 +89,9 @@ if version.parse(installed_version) < version.parse(RSL_RL_VERSION):
     exit(1)
 
 
-def main():
+@hydra_task_config(args_cli.task, args_cli.agent)
+def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlBaseRunnerCfg):
     """Train with RSL-RL agent."""
-    env_cfg, agent_cfg = resolve_task_config(args_cli.task, args_cli.agent)
     with launch_simulation(env_cfg, args_cli):
         # override configurations with non-hydra CLI arguments
         agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
@@ -95,6 +99,9 @@ def main():
         agent_cfg.max_iterations = (
             args_cli.max_iterations if args_cli.max_iterations is not None else agent_cfg.max_iterations
         )
+
+        # handle deprecated configurations
+        agent_cfg = handle_deprecated_rsl_rl_cfg(agent_cfg, installed_version)
 
         # set the environment seed
         # note: certain randomizations occur in the environment initialization so we set the seed here
@@ -110,11 +117,12 @@ def main():
         # multi-gpu training configuration
         if args_cli.distributed:
             local_rank = int(os.getenv("LOCAL_RANK", "0"))
+            global_rank = int(os.getenv("RANK", "0"))
             env_cfg.sim.device = f"cuda:{local_rank}"
             agent_cfg.device = f"cuda:{local_rank}"
 
-            # set seed to have diversity in different threads
-            seed = agent_cfg.seed + local_rank
+            # use global rank for seed diversity across all nodes
+            seed = agent_cfg.seed + global_rank
             env_cfg.seed = seed
             agent_cfg.seed = seed
 
@@ -193,12 +201,13 @@ def main():
         dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg)
 
         # run training
-        runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
-
-        print(f"Training time: {round(time.time() - start_time, 2)} seconds")
-
-        # close the simulator
-        env.close()
+        try:
+            runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
+            print(f"Training time: {round(time.time() - start_time, 2)} seconds")
+            # close the simulator
+            env.close()
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == "__main__":

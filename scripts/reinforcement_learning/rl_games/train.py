@@ -6,6 +6,7 @@
 """Script to train RL agent with RL-Games."""
 
 import argparse
+import contextlib
 import logging
 import math
 import os
@@ -33,6 +34,8 @@ from isaaclab_tasks.utils import add_launcher_args, launch_simulation, resolve_t
 logger = logging.getLogger(__name__)
 
 # PLACEHOLDER: Extension template (do not remove this comment)
+with contextlib.suppress(ImportError):
+    import isaaclab_tasks_experimental  # noqa: F401
 
 # -- argparse ----------------------------------------------------------------
 parser = argparse.ArgumentParser(description="Train an RL agent with RL-Games.")
@@ -221,15 +224,16 @@ def main():
                 wandb.config.update({"env_cfg": env_cfg.to_dict()})
                 wandb.config.update({"agent_cfg": agent_cfg})
 
-        if args_cli.checkpoint is not None:
-            runner.run({"train": True, "play": False, "sigma": train_sigma, "checkpoint": resume_path})
-        else:
-            runner.run({"train": True, "play": False, "sigma": train_sigma})
-
-        print(f"Training time: {round(time.time() - start_time, 2)} seconds")
-
-        # close the simulator
-        env.close()
+        try:
+            if args_cli.checkpoint is not None:
+                runner.run({"train": True, "play": False, "sigma": train_sigma, "checkpoint": resume_path})
+            else:
+                runner.run({"train": True, "play": False, "sigma": train_sigma})
+            print(f"Training time: {round(time.time() - start_time, 2)} seconds")
+            # close the simulator
+            env.close()
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == "__main__":

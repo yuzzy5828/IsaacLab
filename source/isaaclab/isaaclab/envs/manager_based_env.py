@@ -104,13 +104,30 @@ class ManagerBasedEnv:
             # the type-annotation is required to avoid a type-checking error
             # since it gets confused with Isaac Sim's SimulationContext class
             self.sim: SimulationContext = SimulationContext(self.cfg.sim)
+            created_sim = True
         else:
             # simulation context should only be created before the environment
             # when in extension mode
             if not builtins.ISAAC_LAUNCHED_FROM_TERMINAL:
                 raise RuntimeError("Simulation context already exists. Cannot create a new one.")
             self.sim: SimulationContext = SimulationContext.instance()
+            created_sim = False
 
+        # From this point on, if __init__ fails we must tear down the SimulationContext
+        # singleton (only if we created it) so callers can retry or proceed.
+        try:
+            self._init_sim()
+        except Exception:
+            if created_sim:
+                self.sim.clear_instance()
+            raise
+
+    def _init_sim(self):
+        """Complete environment initialization after the SimulationContext is created.
+
+        Separated from :meth:`__init__` so that the caller can tear down the
+        :class:`SimulationContext` singleton if this method raises.
+        """
         # make sure torch is running on the correct device
         if "cuda" in self.device:
             torch.cuda.set_device(self.device)
@@ -148,7 +165,10 @@ class ManagerBasedEnv:
         # viewport is not available in other rendering modes so the function will throw a warning
         # FIXME: This needs to be fixed in the future when we unify the UI functionalities even for
         # non-rendering modes.
-        if self.sim.has_gui:
+        # Initialize when GUI is available OR when visualizers are active (headless rendering)
+        # Visualizers support camera updates via sim.set_camera_view() which forwards to all active visualizers
+        has_visualizers = bool(self.sim.get_setting("/isaaclab/visualizer"))
+        if self.sim.has_gui or has_visualizers:
             self.viewport_camera_controller = ViewportCameraController(self, self.cfg.viewer)
         else:
             self.viewport_camera_controller = None
@@ -212,7 +232,10 @@ class ManagerBasedEnv:
 
     def __del__(self):
         """Cleanup for the environment."""
-        self.close()
+        import sys
+
+        if not sys.is_finalizing():
+            self.close()
 
     """
     Properties.
@@ -517,7 +540,7 @@ class ManagerBasedEnv:
             import omni.replicator.core as rep
 
             rep.set_global_seed(seed)
-        except ModuleNotFoundError:
+        except (ModuleNotFoundError, AttributeError):
             pass
         # set seed for torch and other libraries
         return configure_seed(seed)
