@@ -58,12 +58,12 @@
     <link rel="icon" href="../../../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="Installation using Isaac Sim Pip Package" href="pip_installation.html" />
+    <link rel="next" title="Kit-less Installation" href="kitless_installation.html" />
     <link rel="prev" title="Isaac Lab Ecosystem" href="../ecosystem.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="3.0.0" />
-    <meta name="docbuild:last-update" content="Mar 16, 2026"/>
+    <meta name="docbuild:last-update" content="Mar 17, 2026"/>
   </head>
   
   
@@ -224,6 +224,7 @@
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../ecosystem.html">Isaac Lab Ecosystem</a></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Local Installation</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="kitless_installation.html">Kit-less Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pip_installation.html">Installation using Isaac Sim Pip Package</a></li>
 <li class="toctree-l2"><a class="reference internal" href="binaries_installation.html">Installation using Isaac Sim Pre-built Binaries</a></li>
 <li class="toctree-l2"><a class="reference internal" href="source_installation.html">Installation using Isaac Sim Source Code</a></li>
@@ -376,8 +377,6 @@
 <li class="toctree-l2"><a class="reference internal" href="../../experimental-features/newton-physics-integration/installation.html">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../experimental-features/newton-physics-integration/limitations-and-known-bugs.html">Limitations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../experimental-features/newton-physics-integration/solver-transitioning.html">Solver Transitioning</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../experimental-features/newton-physics-integration/sim-to-sim.html">Sim-to-Sim Policy Transfer</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../experimental-features/newton-physics-integration/sim-to-real.html">Sim-to-Real Policy Transfer</a></li>
 </ul>
 </details></li>
 </ul>
@@ -714,10 +713,6 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">Troubleshooting</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kit-less-installation">Kit-less Installation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#selective-install">Selective Install</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ovrtx-rendering">OVRTX Rendering</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-installation-tests">Running Installation Tests</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#isaac-sim-installation">Isaac Sim Installation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-an-installation-method">Choosing an Installation Method</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next Steps</a></li>
@@ -753,7 +748,7 @@ Newton physics backend <em>without</em> installing Isaac Sim. Simply clone Isaac
 </pre></div>
 </div>
 <p>This installs the core Isaac Lab packages and the Newton physics backend. Isaac Sim is <strong>not</strong>
-required for this mode. See <a class="reference internal" href="#kit-less-installation">Kit-less Installation</a> below for which features are available
+required for this mode. See <a class="reference internal" href="kitless_installation.html"><span class="doc">Kit-less Installation</span></a> for which features are available
 without Isaac Sim.</p>
 <p>When you need full simulation features — including PhysX, ROS, URDF/MJCF
 importers — install Isaac Sim via pip (see the
@@ -836,129 +831,6 @@ to resolve installation issues in Linux.</p>
 to automatically check if the above requirements are met for running Isaac Sim on your system.</p>
 </section>
 </section>
-<section id="kit-less-installation">
-<span id="kitless-installation"></span><h2>Kit-less Installation<a class="headerlink" href="#kit-less-installation" title="Link to this heading">#</a></h2>
-<p>Isaac Lab can be installed and used <strong>without Isaac Sim</strong> using the kit-less mode. This is the
-fastest way to get started and is ideal for users who only need the Newton physics backend.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Clone Isaac Lab</span>
-git<span class="w"> </span>clone<span class="w"> </span>https://github.com/isaac-sim/IsaacLab.git
-<span class="nb">cd</span><span class="w"> </span>IsaacLab
-
-<span class="c1"># Install Isaac Lab (Newton backend, no Isaac Sim required)</span>
-./isaaclab.sh<span class="w"> </span>--install<span class="w">   </span><span class="c1"># or ./isaaclab.sh -i</span>
-
-<span class="c1"># Kickoff training with Newton physics and Newton visualizer</span>
-./isaaclab.sh<span class="w"> </span>-p<span class="w"> </span>scripts/reinforcement_learning/rsl_rl/train.py<span class="w"> </span><span class="se">\</span>
---task<span class="o">=</span>Isaac-Cartpole-Direct-v0<span class="w"> </span><span class="se">\</span>
---num_envs<span class="o">=</span><span class="m">16</span><span class="w"> </span>--max_iterations<span class="o">=</span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
-<span class="nv">presets</span><span class="o">=</span>newton<span class="w"> </span>--visualizer<span class="w"> </span>newton
-</pre></div>
-</div>
-<p><strong>Features available in kit-less mode (Newton backend, no Isaac Sim):</strong></p>
-<ul class="simple">
-<li><p>Newton physics simulation (GPU-accelerated, including MuJoCo-Warp solver)</p></li>
-<li><p>All manager-based and direct RL environments that support Newton</p></li>
-<li><p>RL training with SKRL, RSL-RL, and other frameworks</p></li>
-<li><p>Robot assets compatible with Newton</p></li>
-</ul>
-<p><strong>Features that require Isaac Sim:</strong></p>
-<ul class="simple">
-<li><p>PhysX physics backend</p></li>
-<li><p>Isaac Sim RTX rendering (not ovrtx)</p></li>
-<li><p>Kit visualizer</p></li>
-<li><p>Photorealistic rendering workflows</p></li>
-<li><p>ROS / ROS2 integration</p></li>
-<li><p>URDF and MJCF importers (GUI-based)</p></li>
-<li><p>Deformable objects and surface gripper (PhysX-only)</p></li>
-<li><p>Teleoperation and imitation learning workflows</p></li>
-</ul>
-<p>To install Isaac Sim, use the pip method described in <a class="reference internal" href="pip_installation.html"><span class="doc">Installation using Isaac Sim Pip Package</span></a>.</p>
-</section>
-<section id="selective-install">
-<span id="installation-selective-install"></span><h2>Selective Install<a class="headerlink" href="#selective-install" title="Link to this heading">#</a></h2>
-<p>If you want a minimal environment, <code class="docutils literal notranslate"><span class="pre">./isaaclab.sh</span> <span class="pre">-i</span></code> accepts comma-separated
-sub-package names:</p>
-<div class="pst-scrollable-table-container"><table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>Option</p></th>
-<th class="head"><p>What it does</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">isaacsim</span></code></p></td>
-<td><p>Install Isaac Sim pip package</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">newton</span></code></p></td>
-<td><p>Install Newton physics + Newton visualizer</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">physx</span></code></p></td>
-<td><p>Install PhysX physics runtime</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ovrtx</span></code></p></td>
-<td><p>Install OVRTX renderer runtime</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tasks</span></code></p></td>
-<td><p>Install built-in task environments</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">assets</span></code></p></td>
-<td><p>Install robot/object configurations</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">visualizers</span></code></p></td>
-<td><p>Install all visualizer backends</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rsl_rl</span></code></p></td>
-<td><p>Install RSL-RL framework</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">skrl</span></code></p></td>
-<td><p>Install skrl framework</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sb3</span></code></p></td>
-<td><p>Install Stable Baselines3 framework</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rl_games</span></code></p></td>
-<td><p>Install rl_games framework</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">robomimic</span></code></p></td>
-<td><p>Install robomimic framework</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">none</span></code></p></td>
-<td><p>Install only core <code class="docutils literal notranslate"><span class="pre">isaaclab</span></code> package</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Examples:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Minimal Newton setup</span>
-./isaaclab.sh<span class="w"> </span>-i<span class="w"> </span>newton,tasks,assets
-
-<span class="c1"># Newton with OVRTX and RSL-RL only</span>
-./isaaclab.sh<span class="w"> </span>-i<span class="w"> </span>newton,tasks,assets,ovrtx,rsl_rl
-
-<span class="c1"># Full Kit install with skrl</span>
-./isaaclab.sh<span class="w"> </span>-i<span class="w"> </span>isaacsim,skrl
-</pre></div>
-</div>
-</section>
-<section id="ovrtx-rendering">
-<span id="installation-ovrtx"></span><h2>OVRTX Rendering<a class="headerlink" href="#ovrtx-rendering" title="Link to this heading">#</a></h2>
-<p>OVRTX provides GPU-accelerated rendering for vision tasks without Kit.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./isaaclab.sh<span class="w"> </span>-i<span class="w"> </span>ov<span class="o">[</span>ovrtx<span class="o">]</span>
-
-<span class="nb">export</span><span class="w"> </span><span class="nv">LD_PRELOAD</span><span class="o">=</span><span class="k">$(</span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import ovrtx, pathlib; print(pathlib.Path(ovrtx.__file__).parent / &#39;bin/plugins/libcarb.so&#39;)&quot;</span><span class="k">)</span>
-
-./isaaclab.sh<span class="w"> </span>-p<span class="w"> </span>scripts/benchmarks/benchmark_rsl_rl.py<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--task<span class="w"> </span>Isaac-Repose-Cube-Shadow-Vision-Benchmark-Direct-v0<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--headless<span class="w"> </span>--enable_cameras<span class="w"> </span>--num_envs<span class="w"> </span><span class="m">16</span><span class="w"> </span>--max_iterations<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="nv">presets</span><span class="o">=</span>newton,ovrtx_renderer,simple_shading_diffuse_mdl
-</pre></div>
-</div>
-</section>
-<section id="running-installation-tests">
-<h2>Running Installation Tests<a class="headerlink" href="#running-installation-tests" title="Link to this heading">#</a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./isaaclab.sh<span class="w"> </span>-p<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>source/isaaclab/test/cli/test_cli_utils.py<span class="w"> </span>-v
-</pre></div>
-</div>
-</section>
 <section id="isaac-sim-installation">
 <h2>Isaac Sim Installation<a class="headerlink" href="#isaac-sim-installation" title="Link to this heading">#</a></h2>
 <p>For most users, the simplest and fastest way to install Isaac Lab with full Isaac Sim support
@@ -981,7 +853,7 @@ Use this table to decide:</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><strong>Kit-less</strong></p></td>
+<tr class="row-even"><td><p><strong>Kit-less (beta)</strong></p></td>
 <td><p>❌ not required</p></td>
 <td><p>💾 source (git)</p></td>
 <td><p>Newton-only, fastest start</p></td>
@@ -1030,7 +902,7 @@ case</p></td>
 <h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
 <p>Once you’ve reviewed the installation methods, continue with the guide that matches your workflow:</p>
 <ul class="simple">
-<li><p>🚀 <a class="reference internal" href="#kit-less-installation">Kit-less Installation</a> (above)</p>
+<li><p>🚀 <a class="reference internal" href="kitless_installation.html"><span class="doc">Kit-less Installation</span></a></p>
 <ul>
 <li><p>Install Isaac Lab without Isaac Sim.</p></li>
 <li><p>Uses the Newton physics backend.</p></li>
@@ -1110,11 +982,11 @@ or if your deployment environment is offline.</p></li>
       </div>
     </a>
     <a class="right-next"
-       href="pip_installation.html"
+       href="kitless_installation.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Installation using Isaac Sim Pip Package</p>
+        <p class="prev-next-title">Kit-less Installation</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1143,10 +1015,6 @@ or if your deployment environment is offline.</p></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">Troubleshooting</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kit-less-installation">Kit-less Installation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#selective-install">Selective Install</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ovrtx-rendering">OVRTX Rendering</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-installation-tests">Running Installation Tests</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#isaac-sim-installation">Isaac Sim Installation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-an-installation-method">Choosing an Installation Method</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next Steps</a></li>
@@ -1184,7 +1052,7 @@ By The Isaac Lab Project Developers.
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Mar 16, 2026.
+  Last updated on Mar 17, 2026.
   <br/>
 </p>
   </div>
