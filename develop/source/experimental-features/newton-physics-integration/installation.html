@@ -756,7 +756,7 @@ cleaning your pip cache with <code class="docutils literal notranslate"><span cl
 </pre></div>
 </div>
 <p>[Optional] Install Isaac Sim 6.0:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaacsim[all,extscache]==6.0.0&quot;</span><span class="w"> </span>--extra-index-url<span class="w"> </span>https://pypi.nvidia.com
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaacsim[all,extscache]==6.0.0&quot;</span><span class="w"> </span>--extra-index-url<span class="w"> </span>https://pypi.nvidia.com<span class="w"> </span>--index-strategy<span class="w"> </span>unsafe-best-match<span class="w"> </span>--prerelease<span class="o">=</span>allow
 </pre></div>
 </div>
 <p>Install the correct version of torch and torchvision:</p>
@@ -771,7 +771,7 @@ cleaning your pip cache with <code class="docutils literal notranslate"><span cl
 <section id="testing-the-installation">
 <h2>Testing the Installation<a class="headerlink" href="#testing-the-installation" title="Link to this heading">#</a></h2>
 <p>To verify that the installation was successful, run the following command from the root directory of your Isaac Lab repository:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./isaaclab.sh<span class="w"> </span>-p<span class="w"> </span>scripts/environments/zero_agent.py<span class="w"> </span>--task<span class="w"> </span>Isaac-Cartpole-Direct-v0<span class="w"> </span>--num_envs<span class="w"> </span><span class="m">128</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./isaaclab.sh<span class="w"> </span>-p<span class="w"> </span>scripts/environments/zero_agent.py<span class="w"> </span>--task<span class="w"> </span>Isaac-Cartpole-Direct-v0<span class="w"> </span>--num_envs<span class="w"> </span><span class="m">128</span><span class="w"> </span>--viz<span class="w"> </span>newton<span class="w"> </span><span class="nv">presets</span><span class="o">=</span>newton
 </pre></div>
 </div>
 </section>
