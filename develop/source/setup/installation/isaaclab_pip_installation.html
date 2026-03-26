@@ -892,14 +892,15 @@ uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </s
 uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">isaaclab</span><span class="o">==</span><span class="m">3</span>.0.0<span class="w"> </span><span class="c1"># specific version</span>
 
 <span class="c1"># Isaac Lab + Isaac Sim</span>
-uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[isaacsim]&quot;</span>
+uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[isaacsim]&quot;</span><span class="w"> </span>--index-strategy<span class="w"> </span>unsafe-best-match<span class="w"> </span>--prerelease<span class="o">=</span>allow
 
 <span class="c1"># Isaac Lab + specific sub-package(s)</span>
+<span class="c1"># Note: flags above are only needed when installing the isaacsim extra</span>
 uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[assets]&quot;</span>
 uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[rl,tasks]&quot;</span>
 
 <span class="c1"># Isaac Lab + Isaac Sim + all sub-packages</span>
-uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[isaacsim,all]&quot;</span>
+uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[isaacsim,all]&quot;</span><span class="w"> </span>--index-strategy<span class="w"> </span>unsafe-best-match<span class="w"> </span>--prerelease<span class="o">=</span>allow
 </pre></div>
 </div>
 </div>
@@ -911,14 +912,15 @@ pip<span class="w"> </span>install<span class="w"> </span>isaaclab<span class="w
 pip<span class="w"> </span>install<span class="w"> </span><span class="nv">isaaclab</span><span class="o">==</span><span class="m">3</span>.0.0<span class="w"> </span><span class="c1"># specific version</span>
 
 <span class="c1"># Isaac Lab + Isaac Sim</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[isaacsim]&quot;</span><span class="w"> </span>--extra-index-url<span class="w"> </span>https://pypi.nvidia.com
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[isaacsim]&quot;</span><span class="w"> </span>--extra-index-url<span class="w"> </span>https://pypi.nvidia.com<span class="w"> </span>--pre
 
 <span class="c1"># Isaac Lab + specific sub-package(s)</span>
+<span class="c1"># Note: flags above are only needed when installing the isaacsim extra</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[assets]&quot;</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[rl,tasks]&quot;</span>
 
 <span class="c1"># Isaac Lab + Isaac Sim + all Isaac Lab sub-packages</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[isaacsim,all]&quot;</span><span class="w"> </span>--extra-index-url<span class="w"> </span>https://pypi.nvidia.com
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;isaaclab[isaacsim,all]&quot;</span><span class="w"> </span>--extra-index-url<span class="w"> </span>https://pypi.nvidia.com<span class="w"> </span>--pre
 </pre></div>
 </div>
 </div>
