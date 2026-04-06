@@ -275,12 +275,6 @@ class PhysxManager(PhysicsManager):
         cls._timeline.play()
         # Pump events so timeline callbacks fire synchronously
         omni.kit.app.get_app().update()
-        # Force fabric to re-synchronize articulation transforms.
-        # Starting with PhysX fabric 107.3.21 (Isaac Sim 5.1), the FabricManager skips
-        # writing articulation poses on subsequent resumes, causing articulation meshes
-        # to freeze visually. Detaching and re-attaching the stage forces a full
-        # re-initialization. See: https://github.com/isaac-sim/IsaacLab/issues/4279
-        cls._re_sync_fabric()
 
     @classmethod
     def pause(cls) -> None:
@@ -295,6 +289,30 @@ class PhysxManager(PhysicsManager):
         cls._timeline.stop()
         # Pump events so timeline callbacks fire synchronously
         omni.kit.app.get_app().update()
+
+    @classmethod
+    def wait_for_playing(cls) -> None:
+        """Block until the timeline is playing, keeping the GUI responsive.
+
+        After resume, forces a fabric re-sync so articulation meshes unfreeze.
+        See: https://github.com/isaac-sim/IsaacLab/issues/4279
+        """
+        if cls._timeline.is_playing():
+            return
+        app = omni.kit.app.get_app()
+        while not cls._timeline.is_playing():
+            app.update()
+            if cls._timeline.is_stopped():
+                break
+        # Force fabric to re-sync articulation transforms after resume.
+        # detach/attach resets the FabricManager, then we immediately push
+        # current poses so the first render after resume shows correct state.
+        if not cls._timeline.is_stopped():
+            cls._re_sync_fabric()
+            if cls._view is not None:
+                cls._view.update_articulations_kinematic()
+            if cls._update_fabric is not None:
+                cls._update_fabric(0.0, 0.0)
 
     @classmethod
     def close(cls) -> None:
@@ -623,10 +641,18 @@ class PhysxManager(PhysicsManager):
             return
         try:
             cls._fabric.attach_stage(stage_id)
-            if cls._update_fabric is not None:
-                cls._update_fabric(0.0, 0.0)
         except Exception:
-            logger.warning("Failed to re-attach fabric stage after pause/resume. Articulation visuals may be stale.")
+            logger.warning(
+                "Failed to re-attach fabric stage after pause/resume. Attempting recovery.",
+                exc_info=True,
+            )
+            try:
+                cls._fabric.attach_stage(stage_id)
+            except Exception:
+                logger.error(
+                    "Could not re-attach fabric stage. Articulation visuals will be broken until next reset.",
+                    exc_info=True,
+                )
 
     @classmethod
     def _warmup_and_create_views(cls) -> None:
