@@ -28,7 +28,7 @@ import omni.physics.tensors
 import omni.physx
 import omni.timeline
 import omni.usd
-from pxr import Sdf
+from pxr import Sdf, UsdUtils
 
 import isaaclab.sim as sim_utils
 from isaaclab.physics import CallbackHandle, PhysicsEvent, PhysicsManager
@@ -629,8 +629,6 @@ class PhysxManager(PhysicsManager):
         stage = sim.stage
         if stage is None:
             return
-        from pxr import UsdUtils
-
         stage_id = UsdUtils.StageCache.Get().GetId(stage).ToLongInt()
         if stage_id <= 0:
             return
