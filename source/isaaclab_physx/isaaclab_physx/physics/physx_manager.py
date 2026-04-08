@@ -640,17 +640,10 @@ class PhysxManager(PhysicsManager):
         try:
             cls._fabric.attach_stage(stage_id)
         except Exception:
-            logger.warning(
-                "Failed to re-attach fabric stage after pause/resume. Attempting recovery.",
+            logger.error(
+                "Could not re-attach fabric stage. Articulation visuals will be broken until next reset.",
                 exc_info=True,
             )
-            try:
-                cls._fabric.attach_stage(stage_id)
-            except Exception:
-                logger.error(
-                    "Could not re-attach fabric stage. Articulation visuals will be broken until next reset.",
-                    exc_info=True,
-                )
 
     @classmethod
     def _warmup_and_create_views(cls) -> None:
