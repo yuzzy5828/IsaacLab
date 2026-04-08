@@ -673,6 +673,7 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pytorch-torchrun-implementation">Pytorch Torchrun Implementation</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#jax-implementation">Jax Implementation</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#running-multi-gpu-training">Running Multi-GPU Training</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-nccl-errors">Troubleshooting NCCL Errors</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multi-node-training">Multi-Node Training</a></li>
@@ -796,6 +797,28 @@ JAX</label><div class="sd-tab-content docutils">
 </div>
 </div>
 </div>
+</div>
+</section>
+<section id="troubleshooting-nccl-errors">
+<span id="multi-gpu-nccl-troubleshooting"></span><h3>Troubleshooting NCCL Errors<a class="headerlink" href="#troubleshooting-nccl-errors" title="Permalink to this heading">#</a></h3>
+<p>On some Linux multi-GPU systems, distributed training may fail with
+<code class="docutils literal notranslate"><span class="pre">CUDA</span> <span class="pre">error:</span> <span class="pre">an</span> <span class="pre">illegal</span> <span class="pre">memory</span> <span class="pre">access</span> <span class="pre">was</span> <span class="pre">encountered</span></code> reported by <code class="docutils literal notranslate"><span class="pre">ProcessGroupNCCL</span></code>
+during or shortly after communicator initialization.</p>
+<p>If this occurs, try disabling the NCCL shared-memory transport before launching training:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">NCCL_SHM_DISABLE</span><span class="o">=</span><span class="m">1</span>
+</pre></div>
+</div>
+<p>If the issue persists, additional NCCL fallbacks that may help are:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">NCCL_IB_DISABLE</span><span class="o">=</span><span class="m">1</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">NCCL_ALGO</span><span class="o">=</span>Ring
+</pre></div>
+</div>
+<p>Then relaunch the distributed training command as usual.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>These variables are NCCL-level workarounds intended for affected systems. They are not
+required on all machines, and may change communication behavior or performance depending
+on the hardware topology.</p>
 </div>
 </section>
 </section>
@@ -943,6 +966,7 @@ a single node instance.</p>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pytorch-torchrun-implementation">Pytorch Torchrun Implementation</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#jax-implementation">Jax Implementation</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#running-multi-gpu-training">Running Multi-GPU Training</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-nccl-errors">Troubleshooting NCCL Errors</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multi-node-training">Multi-Node Training</a></li>

@@ -669,6 +669,7 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-distributed-training-nccl-errors">Troubleshooting distributed training NCCL errors</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#debugging-physics-simulation-stability-issues">Debugging physics simulation stability issues</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#checking-the-internal-logs-from-the-simulator">Checking the internal logs from the simulator</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#changing-logging-channel-levels-for-the-simulator">Changing logging channel levels for the simulator</a></li>
@@ -695,6 +696,12 @@
 Please also check the <a class="reference external" href="https://docs.omniverse.nvidia.com/kit/docs/kit-manual/latest/guide/linux_troubleshooting.html">troubleshooting page on Omniverse</a> for more
 assistance.</p>
 </div>
+<section id="troubleshooting-distributed-training-nccl-errors">
+<h2>Troubleshooting distributed training NCCL errors<a class="headerlink" href="#troubleshooting-distributed-training-nccl-errors" title="Permalink to this heading">#</a></h2>
+<p>On some Linux multi-GPU systems, distributed training may fail with
+<code class="docutils literal notranslate"><span class="pre">CUDA</span> <span class="pre">error:</span> <span class="pre">an</span> <span class="pre">illegal</span> <span class="pre">memory</span> <span class="pre">access</span> <span class="pre">was</span> <span class="pre">encountered</span></code> reported by <code class="docutils literal notranslate"><span class="pre">ProcessGroupNCCL</span></code>.
+For documented NCCL workarounds, see <a class="reference internal" href="../features/multi_gpu.html#multi-gpu-nccl-troubleshooting"><span class="std std-ref">Troubleshooting NCCL Errors</span></a>.</p>
+</section>
 <section id="debugging-physics-simulation-stability-issues">
 <h2>Debugging physics simulation stability issues<a class="headerlink" href="#debugging-physics-simulation-stability-issues" title="Permalink to this heading">#</a></h2>
 <p>When importing new robots into Isaac Lab or setting up a new environment, simulation instability
@@ -949,6 +956,7 @@ TypeError:<span class="w"> </span>expected<span class="w"> </span>Tensor<span cl
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-distributed-training-nccl-errors">Troubleshooting distributed training NCCL errors</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#debugging-physics-simulation-stability-issues">Debugging physics simulation stability issues</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#checking-the-internal-logs-from-the-simulator">Checking the internal logs from the simulator</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#changing-logging-channel-levels-for-the-simulator">Changing logging channel levels for the simulator</a></li>
