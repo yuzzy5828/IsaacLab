@@ -166,8 +166,9 @@ class ObservationsWithDepthCfg(ObservationsCfg):
         """Depth from zed mini camera."""
         
         depth = ObsTerm(func=mdp.normalize_depth, 
-                        params={"asset_cfg": SceneEntityCfg("camera"),
-                                "data_type": "depth"},
+                        params={
+                            "sensor_cfg": SceneEntityCfg("camera"),
+                            "data_type": "distance_to_image_plane"},
                         )
         def __post_init__(self):
             self.enable_corruption = False

@@ -26,6 +26,9 @@ ENV ISAACSIM_ROOT_PATH=${ISAACSIM_ROOT_PATH_ARG}
 # Path to the Isaac Lab directory
 ARG ISAACLAB_PATH_ARG
 ENV ISAACLAB_PATH=${ISAACLAB_PATH_ARG}
+# Path to the rsl_rl directory
+ARG RSL_RL_PATH_ARG
+ENV RSL_RL_PATH=${RSL_RL_PATH_ARG}
 # Home dir of docker user, typically '/root'
 ARG DOCKER_USER_HOME_ARG
 ENV DOCKER_USER_HOME=${DOCKER_USER_HOME_ARG}
@@ -49,7 +52,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
     rm -rf /var/lib/apt/lists/*
 
 # Copy the Isaac Lab directory (files to exclude are defined in .dockerignore)
-COPY ../ ${ISAACLAB_PATH}
+# pwd is ../../ from Dockerfile.base
+COPY ./IsaacLab ${ISAACLAB_PATH}
+COPY ./rsl_rl ${RSL_RL_PATH}
 
 # Ensure isaaclab.sh has execute permissions
 RUN chmod +x ${ISAACLAB_PATH}/isaaclab.sh
@@ -93,6 +98,11 @@ RUN --mount=type=cache,target=${DOCKER_USER_HOME}/.cache/pip \
 
 # HACK: Remove install of quadprog dependency
 RUN ${ISAACLAB_PATH}/isaaclab.sh -p -m pip uninstall -y quadprog
+
+# Install rsl_rl in editable mode
+RUN mv /workspace/isaaclab/_isaac_sim/kit/python/lib/python3.11/site-packages/rsl_rl /workspace/isaaclab/_isaac_sim/kit/python/lib/python3.11/site-packages/rsl_rl_old
+RUN cd ${RSL_RL_PATH} && \
+    ${ISAACLAB_PATH}/isaaclab.sh -p -m pip install -e .
 
 # aliasing isaaclab.sh and python for convenience
 RUN echo "export ISAACLAB_PATH=${ISAACLAB_PATH}" >> ${HOME}/.bashrc && \

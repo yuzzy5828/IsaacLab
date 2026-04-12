@@ -14,7 +14,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.math import subtract_frame_transforms
 
 if TYPE_CHECKING:
-    from isaaclab.envs import ManagerBasedRLEnv
+    from isaaclab.envs import ManagerBasedEnv, ManagerBasedRLEnv
 
 
 def object_position_in_robot_root_frame(
@@ -29,5 +29,14 @@ def object_position_in_robot_root_frame(
     object_pos_b, _ = subtract_frame_transforms(robot.data.root_pos_w, robot.data.root_quat_w, object_pos_w)
     return object_pos_b
 
-def normalize_depth(asset_cfg: SceneEntityCfg, data_type: str):
+def normalize_depth(
+    env: ManagerBasedEnv,
+    sensor_cfg: SceneEntityCfg,
+    data_type: str = "distance_to_image_plane",
+) -> torch.Tensor:
     
+    camera = env.scene[sensor_cfg.name]
+    depth = camera.data.output[data_type]
+    # replace nan to zero
+    depth = torch.nan_to_num(depth, nan=0.0, posinf=0.0)
+    return depth.float()

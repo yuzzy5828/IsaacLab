@@ -11,6 +11,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 
 @configclass
 class TongSystemLiftCubePPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    class_name = "OnPolicyRunnerWithDepth"
     num_steps_per_env = 24
     max_iterations = 2000
     save_interval = 50
