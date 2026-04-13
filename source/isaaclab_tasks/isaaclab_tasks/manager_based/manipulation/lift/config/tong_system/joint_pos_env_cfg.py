@@ -6,7 +6,7 @@
 
 import math
 
-from isaaclab.assets import RigidObjectCfg
+from isaaclab.assets import RigidObjectCfg, DeformableObjectCfg
 from isaaclab.sensors import FrameTransformerCfg
 from isaaclab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
@@ -15,6 +15,7 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from isaaclab_tasks.manager_based.manipulation.lift import mdp
 from isaaclab_tasks.manager_based.manipulation.lift.config.tong_system.lift_tong_system_env_cfg import LiftCustomTableEnvCfg, LiftCustomTableWithDepthEnvCfg
+from isaaclab_tasks.manager_based.manipulation.lift.config.tong_system.lift_tong_system_env_cfg import DeformableObjectEventCfg, DeformableObjectTerminationsCfg
 
 from isaaclab_assets.robots.tong_system import TONG_SYSTEM_CFG
 
@@ -159,6 +160,25 @@ class TongSystemCubeLiftWithDepthEnvCfg(LiftCustomTableWithDepthEnvCfg):
             ],
         )
 
+@configclass
+class TongSystemDeformableObjectLiftWithDepthEnvCfg(TongSystemCubeLiftWithDepthEnvCfg):
+    events: DeformableObjectEventCfg = DeformableObjectEventCfg()
+    terminations: DeformableObjectTerminationsCfg = DeformableObjectTerminationsCfg()
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        # Set Deformable Object
+        self.scene.object = DeformableObjectCfg(
+            prim_path="{ENV_REGEX_NS}/Object",
+            init_state=DeformableObjectCfg.InitialStateCfg(pos=[0.5, 0.0, 0.8], rot=[1, 0, 0, 0]),
+            spawn=UsdFileCfg(
+                usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/DeformableTube/tube.usd",
+                scale=(1.5, 1.5, 1.5),
+            )
+        )
+    
+        self.scene.replicate_physics = False
 
 @configclass
 class TongSystemCubeLiftEnvCfg_PLAY(TongSystemCubeLiftEnvCfg):

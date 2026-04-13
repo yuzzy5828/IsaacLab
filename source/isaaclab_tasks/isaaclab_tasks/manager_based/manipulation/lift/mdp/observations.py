@@ -38,6 +38,6 @@ def normalize_depth(
     camera = env.scene[sensor_cfg.name]
     depth = camera.data.output[data_type]
 
-    normalized_depth = depth / 30.0 # TODO: fix hardcoded max depth value
+    normalized_depth = depth / 0.7 # TODO: fix hardcoded max depth value
 
     return normalized_depth.float()

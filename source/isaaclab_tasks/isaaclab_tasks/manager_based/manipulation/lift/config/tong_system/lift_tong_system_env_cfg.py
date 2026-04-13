@@ -88,13 +88,13 @@ class ObjectCustomTableWithDepthSceneCfg(ObjectCustomTableSceneCfg):
             focal_length=18.0,
             focus_distance=400.0,
             horizontal_aperture=32.0,
-            # clipping_range=(0.01, 0.7),
-            clipping_range=(0.01, 30.0), # TODO: fix hardcoded max depth value
+            clipping_range=(0.01, 0.7),
+            # clipping_range=(0.01, 30.0), # TODO: fix hardcoded max depth value
         ),
         offset=CameraCfg.OffsetCfg(
             pos=(0.0, 0.0, 0.0),
-            # rot=(0.8433914458128857, 0.5372996083468239, 0.0, 0.0), # 65.0 deg
-            rot=(1.0, 0.0, 0.0, 0.0), # 0.0 deg
+            rot=(0.8433914458128857, 0.5372996083468239, 0.0, 0.0), # 65.0 deg
+            # rot=(1.0, 0.0, 0.0, 0.0), # 0.0 deg
             convention="ros",
         ),
     )
@@ -195,6 +195,19 @@ class EventCfg:
         },
     )
 
+@configclass
+class DeformableObjectEventCfg:
+    reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
+
+    reset_nodal_state = EventTerm(
+        func=mdp.reset_nodal_state_uniform,
+        mode="reset",
+        params={
+            "position_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (0.0, 0.3)},
+            "velocity_range": {},
+            "asset_cfg": SceneEntityCfg("object", body_names="Object"),
+        },
+    )
 
 @configclass
 class RewardsCfg:
@@ -236,6 +249,10 @@ class TerminationsCfg:
         func=mdp.root_height_below_minimum,
         params={"minimum_height": -0.05, "asset_cfg": SceneEntityCfg("object")},
     )
+
+@configclass
+class DeformableObjectTerminationsCfg:
+    time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
 
 @configclass
