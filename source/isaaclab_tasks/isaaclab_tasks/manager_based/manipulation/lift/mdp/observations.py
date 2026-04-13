@@ -32,11 +32,12 @@ def object_position_in_robot_root_frame(
 def normalize_depth(
     env: ManagerBasedEnv,
     sensor_cfg: SceneEntityCfg,
-    data_type: str = "distance_to_image_plane",
+    data_type: str = "depth",
 ) -> torch.Tensor:
     
     camera = env.scene[sensor_cfg.name]
     depth = camera.data.output[data_type]
-    # replace nan to zero
-    depth = torch.nan_to_num(depth, nan=0.0, posinf=0.0)
-    return depth.float()
+
+    normalized_depth = depth / 30.0 # TODO: fix hardcoded max depth value
+
+    return normalized_depth.float()

@@ -83,16 +83,18 @@ class ObjectCustomTableWithDepthSceneCfg(ObjectCustomTableSceneCfg):
         update_period=0.033,
         height=720,
         width=1280,
-        data_types=["rgb", "distance_to_image_plane"],
+        data_types=["rgb", "distance_to_camera"],
         spawn=sim_utils.PinholeCameraCfg(
-            focal_length=24.0,
+            focal_length=18.0,
             focus_distance=400.0,
-            horizontal_aperture=20.955,
-            clipping_range=(0.01, 1.0e3),
+            horizontal_aperture=32.0,
+            # clipping_range=(0.01, 0.7),
+            clipping_range=(0.01, 30.0), # TODO: fix hardcoded max depth value
         ),
         offset=CameraCfg.OffsetCfg(
-            pos=(0.3, 0.0, 0.3),
-            rot=(0.0, 0.0, 1.0, 0.0),
+            pos=(0.0, 0.0, 0.0),
+            # rot=(0.8433914458128857, 0.5372996083468239, 0.0, 0.0), # 65.0 deg
+            rot=(1.0, 0.0, 0.0, 0.0), # 0.0 deg
             convention="ros",
         ),
     )
@@ -168,7 +170,7 @@ class ObservationsWithDepthCfg(ObservationsCfg):
         depth = ObsTerm(func=mdp.normalize_depth, 
                         params={
                             "sensor_cfg": SceneEntityCfg("camera"),
-                            "data_type": "distance_to_image_plane"},
+                            "data_type": "distance_to_camera"},
                         )
         def __post_init__(self):
             self.enable_corruption = False
