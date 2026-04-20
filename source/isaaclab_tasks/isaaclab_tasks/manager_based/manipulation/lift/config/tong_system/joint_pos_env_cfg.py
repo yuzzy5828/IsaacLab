@@ -177,14 +177,14 @@ class TongSystemLinkedRodLiftEnvCfg(TongSystemCubeLiftEnvCfg):
 
         self.scene.object = LinkedRodObjectCfg(
             prim_path="{ENV_REGEX_NS}/Object",
-            init_state=ArticulationCfg.InitialStateCfg(
-                pos=[0.4, 0.0, 0.8],
-                rot=[1, 0, 0, 0],
-                joint_pos={"rod_joint_1": 0.0, "rod_joint_2": 0.0},
-            ),
-            link_length=0.06,
-            link_radius=0.008,
-            joint_type="revolute",   # 剛体棒。"revolute" で折れ曲がり可
+            joint_positions=[
+                (-0.04, 0.00, 0.00),
+                (0.01, 0.06, 0.00),
+                (0.03, 0.09, 0.00),
+                (0.04, 0.12, 0.00),
+            ],
+            link_radius=0.004,
+            joint_type="revolute",
         )
 
         self.scene.replicate_physics = False
@@ -206,13 +206,13 @@ class TongSystemLinkedRodLiftWithDepthEnvCfg(TongSystemCubeLiftWithDepthEnvCfg):
 
         self.scene.object = LinkedRodObjectCfg(
             prim_path="{ENV_REGEX_NS}/Object",
-            init_state=ArticulationCfg.InitialStateCfg(
-                pos=[0.4, 0.0, 0.8],
-                rot=[1, 0, 0, 0],
-                joint_pos={"rod_joint_1": 0.0, "rod_joint_2": 0.0},
-            ),
-            link_length=0.06,
-            link_radius=0.008,
+            joint_positions=[
+                (-0.04, 0.00, 0.00),
+                (0.01, 0.06, 0.00),
+                (0.03, 0.09, 0.00),
+                (0.04, 0.12, 0.00),
+            ],
+            link_radius=0.004,
             joint_type="revolute",
         )
 
