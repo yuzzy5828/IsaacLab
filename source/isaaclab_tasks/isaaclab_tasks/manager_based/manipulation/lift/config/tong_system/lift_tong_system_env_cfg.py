@@ -196,6 +196,20 @@ class EventCfg:
     )
 
 @configclass
+class LinkedRodEventCfg(EventCfg):
+    """ルートリンク名を rod_link_0 に合わせて上書き。"""
+
+    reset_object_position = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (-0.1, 0.1), "y": (-0.25, 0.25), "z": (0.0, 0.0)},
+            "velocity_range": {},
+            "asset_cfg": SceneEntityCfg("object", body_names="rod_link_0"),
+        },
+    )
+
+@configclass
 class DeformableObjectEventCfg:
     reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
 
@@ -248,6 +262,19 @@ class TerminationsCfg:
     object_dropping = DoneTerm(
         func=mdp.root_height_below_minimum,
         params={"minimum_height": -0.05, "asset_cfg": SceneEntityCfg("object")},
+    )
+
+
+@configclass
+class LinkedRodTerminationsCfg(TerminationsCfg):
+    """落下判定をルートリンクで監視。"""
+
+    object_dropping = DoneTerm(
+        func=mdp.root_height_below_minimum,
+        params={
+            "minimum_height": -0.05,
+            "asset_cfg": SceneEntityCfg("object", body_names="rod_link_0"),
+        },
     )
 
 @configclass

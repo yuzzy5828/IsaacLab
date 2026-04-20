@@ -6,16 +6,17 @@
 
 import math
 
-from isaaclab.assets import RigidObjectCfg, DeformableObjectCfg
+from isaaclab.assets import RigidObjectCfg, ArticulationCfg, DeformableObjectCfg
 from isaaclab.sensors import FrameTransformerCfg
 from isaaclab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
+from isaaclab_assets.objects.link_rod import LinkedRodObjectCfg
 from isaaclab_tasks.manager_based.manipulation.lift import mdp
 from isaaclab_tasks.manager_based.manipulation.lift.config.tong_system.lift_tong_system_env_cfg import LiftCustomTableEnvCfg, LiftCustomTableWithDepthEnvCfg
-from isaaclab_tasks.manager_based.manipulation.lift.config.tong_system.lift_tong_system_env_cfg import DeformableObjectEventCfg, DeformableObjectTerminationsCfg
+from isaaclab_tasks.manager_based.manipulation.lift.config.tong_system.lift_tong_system_env_cfg import LinkedRodEventCfg, DeformableObjectEventCfg, LinkedRodTerminationsCfg, DeformableObjectTerminationsCfg
 
 from isaaclab_assets.robots.tong_system import TONG_SYSTEM_CFG
 
@@ -159,6 +160,63 @@ class TongSystemCubeLiftWithDepthEnvCfg(LiftCustomTableWithDepthEnvCfg):
                 ),
             ],
         )
+
+
+##
+# 3リンク棒オブジェクト用 Lift Cfg（深度なし）
+##
+
+@configclass
+class TongSystemLinkedRodLiftEnvCfg(TongSystemCubeLiftEnvCfg):
+
+    events: LinkedRodEventCfg = LinkedRodEventCfg()
+    terminations: LinkedRodTerminationsCfg = LinkedRodTerminationsCfg()
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.scene.object = LinkedRodObjectCfg(
+            prim_path="{ENV_REGEX_NS}/Object",
+            init_state=ArticulationCfg.InitialStateCfg(
+                pos=[0.4, 0.0, 0.8],
+                rot=[1, 0, 0, 0],
+                joint_pos={"rod_joint_1": 0.0, "rod_joint_2": 0.0},
+            ),
+            link_length=0.06,
+            link_radius=0.008,
+            joint_type="revolute",   # 剛体棒。"revolute" で折れ曲がり可
+        )
+
+        self.scene.replicate_physics = False
+
+
+##
+# 3リンク棒オブジェクト用 Lift Cfg（深度あり）
+##
+
+@configclass
+class TongSystemLinkedRodLiftWithDepthEnvCfg(TongSystemCubeLiftWithDepthEnvCfg):
+    """深度カメラ付き・固定3リンク棒リフト環境。"""
+
+    events: LinkedRodEventCfg = LinkedRodEventCfg()
+    terminations: LinkedRodTerminationsCfg = LinkedRodTerminationsCfg()
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.scene.object = LinkedRodObjectCfg(
+            prim_path="{ENV_REGEX_NS}/Object",
+            init_state=ArticulationCfg.InitialStateCfg(
+                pos=[0.4, 0.0, 0.8],
+                rot=[1, 0, 0, 0],
+                joint_pos={"rod_joint_1": 0.0, "rod_joint_2": 0.0},
+            ),
+            link_length=0.06,
+            link_radius=0.008,
+            joint_type="revolute",
+        )
+
+        self.scene.replicate_physics = False
 
 @configclass
 class TongSystemDeformableObjectLiftWithDepthEnvCfg(TongSystemCubeLiftWithDepthEnvCfg):

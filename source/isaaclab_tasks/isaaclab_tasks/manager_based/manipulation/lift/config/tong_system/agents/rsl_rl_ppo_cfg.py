@@ -11,7 +11,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 
 @configclass
 class TongSystemLiftCubePPORunnerCfg(RslRlOnPolicyRunnerCfg):
-    class_name = "OnPolicyRunnerWithDepth"
+    class_name = "OnPolicyRunner"
     num_steps_per_env = 24
     max_iterations = 2000
     save_interval = 50
@@ -37,3 +37,16 @@ class TongSystemLiftCubePPORunnerCfg(RslRlOnPolicyRunnerCfg):
         desired_kl=0.01,
         max_grad_norm=1.0,
     )
+
+@configclass
+class TongSystemLiftCubeWithDepthPPORunnerCfg(TongSystemLiftCubePPORunnerCfg):
+    class_name = "OnPolicyRunnerWithDepth"
+    experiment_name = "tong_system_lift_cube_with_depth"
+
+@configclass
+class TongSystemLiftLinkedRodObjectWithDepthPPORunnerCfg(TongSystemLiftCubeWithDepthPPORunnerCfg):
+    experiment_name = "tong_system_lift_linked_rod_object_with_depth"
+
+@configclass
+class TongSystemLiftDeformableObjectWithDepthPPORunnerCfg(TongSystemLiftCubeWithDepthPPORunnerCfg):
+    experiment_name = "tong_system_lift_deformable_object_with_depth"
