@@ -6,6 +6,7 @@ from isaaclab.assets import ArticulationCfg
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.utils import configclass
 
+import os
 
 @configclass
 class LinkedRodObjectCfg(ArticulationCfg):
@@ -78,10 +79,12 @@ class LinkedRodObjectCfg(ArticulationCfg):
         """
         pxr (OpenUSD) を使って3リンク棒のUSDをテンポラリファイルに生成して返す。
         """
-        import tempfile, os
         from pxr import Usd, UsdGeom, UsdPhysics, Gf, Sdf
 
-        usd_path = os.path.join(tempfile.gettempdir(), "linked_rod_3links.usd")
+        usd_path = "/workspace/isaaclab/source/isaaclab_assets/isaaclab_assets/objects/linked_rod/usd/linked_rod3.usd"
+
+        # if os.path.exists(usd_path):
+        #     return usd_path
 
         stage = Usd.Stage.CreateNew(usd_path)
         UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
