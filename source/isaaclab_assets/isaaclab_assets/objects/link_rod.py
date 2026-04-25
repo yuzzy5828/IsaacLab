@@ -9,6 +9,7 @@ from isaaclab.assets import ArticulationCfg
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.utils import configclass
 
+import os
 
 @configclass
 class LinkedRodObjectCfg(ArticulationCfg):
