@@ -8,7 +8,7 @@ import torch
 from torch import Tensor
 
 class DataWriter:
-    def __init__(self, output_dir: str, chunk_size: int = 32):
+    def __init__(self, output_dir: str, chunk_size: int = 2):
         self._path = Path(output_dir)
         self._path.mkdir(parents=True, exist_ok=True)
         self._chunk_size = chunk_size

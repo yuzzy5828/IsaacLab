@@ -13,18 +13,20 @@ import os
 
 @configclass
 class LinkedRodObjectCfg(ArticulationCfg):
-
+    """
+    joint_positions で各ジョイント点をワールド座標で指定するロープ状オブジェクト。
+    """
     joint_positions: list = field(default_factory=lambda: [
         (0.0, 0.0, 0.0),
-        (0.02, 0.06, 0.0),
-        (0.04, 0.09, 0.0),
-        (0.06, 0.12, 0.0),
+        (0.0, 0.0, 0.06),
+        (0.0, 0.0, 0.12),
+        (0.0, 0.0, 0.18),
     ])
     link_radius: float = 0.004
-    joint_type: str = "fixed"
+    joint_type:  str   = "revolute"
 
-    prim_path: str = "{ENV_REGEX_NS}/Object"
-    spawn: sim_utils.UsdFileCfg = None
+    prim_path:  str                             = "{ENV_REGEX_NS}/Object"
+    spawn:      sim_utils.UsdFileCfg            = None
     init_state: ArticulationCfg.InitialStateCfg = ArticulationCfg.InitialStateCfg(
         pos=(0.4, 0.0, 0.8),
         rot=(1.0, 0.0, 0.0, 0.0),
@@ -34,10 +36,8 @@ class LinkedRodObjectCfg(ArticulationCfg):
     def __post_init__(self):
         pts = [np.array(p, dtype=float) for p in self.joint_positions]
         assert len(pts) >= 2, "joint_positions は最低2点必要です"
-
         n_links = len(pts) - 1
 
-        # ジョイント名リストを init_state に反映
         joint_pos_dict = {f"rod_joint_{i+1}": 0.0 for i in range(n_links - 1)}
         joint_vel_dict = {f"rod_joint_{i+1}": 0.0 for i in range(n_links - 1)}
         self.init_state = ArticulationCfg.InitialStateCfg(
@@ -47,21 +47,22 @@ class LinkedRodObjectCfg(ArticulationCfg):
             joint_vel=joint_vel_dict,
         )
 
-        usd_path = self._generate_usd(pts)
-
         self.spawn = sim_utils.UsdFileCfg(
-            usd_path=usd_path,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                rigid_body_enabled=True,
-                max_linear_velocity=1000.0,
-                max_angular_velocity=1000.0,
-                max_depenetration_velocity=5.0,
-                enable_gyroscopic_forces=True,
-            ),
-            mass_props=sim_utils.MassPropertiesCfg(mass=0.05),
-            collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
+            usd_path=self._get_or_create_usd(pts),
+            # rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            #     rigid_body_enabled=True,
+            #     max_linear_velocity=1000.0,
+            #     max_angular_velocity=1000.0,
+            #     max_depenetration_velocity=5.0,
+            #     enable_gyroscopic_forces=True,
+            # ),
+            rigid_props=None,
+            # mass_props=sim_utils.MassPropertiesCfg(mass=0.05),
+            # collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True, contact_offset=0.001, rest_offset=0.0),
+            mass_props=None,
+            collision_props=None,
             articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-                enabled_self_collisions=False,
+                enabled_self_collisions=True,
                 solver_position_iteration_count=8,
                 solver_velocity_iteration_count=0,
             ),
@@ -80,26 +81,41 @@ class LinkedRodObjectCfg(ArticulationCfg):
         else:
             self.actuators = {}
 
-    # ------------------------------------------------------------------
-    def _generate_usd(self, pts: list[np.ndarray]) -> str:
+    def _get_or_create_usd(self, pts: list[np.ndarray]) -> str:
+        """パラメータのハッシュでファイル名を決定し、なければ生成する。"""
+        import hashlib, json
+        usd_dir = "/workspace/isaaclab/source/isaaclab_assets/isaaclab_assets/objects/linked_rod/usd"
+        os.makedirs(usd_dir, exist_ok=True)
+
+        key = json.dumps({
+            "pts": [p.tolist() for p in pts],
+            "r":   self.link_radius,
+            "jt":  self.joint_type,
+        }, sort_keys=True)
+        h = hashlib.md5(key.encode()).hexdigest()[:8]
+        usd_path = os.path.join(usd_dir, f"linked_rod_{h}.usd")
+
+        if not os.path.exists(usd_path):
+            self._generate_usd(usd_path, pts)
+        return usd_path
+
+    def _generate_usd(self, usd_path: str, pts: list[np.ndarray]) -> None:
         from pxr import Usd, UsdGeom, UsdPhysics, Gf, Sdf
+        try:
+            from pxr import Semantics
+        except ImportError:
+            from pxr import SemanticsSchema as Semantics
 
         n_links = len(pts) - 1
-        usd_path = os.path.join(
-            tempfile.gettempdir(),
-            f"linked_rod_{n_links}links_{self.joint_type}.usda",
-        )
-
-        stage = Usd.Stage.CreateNew(usd_path)
+        stage   = Usd.Stage.CreateNew(usd_path)
         UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
         UsdGeom.SetStageMetersPerUnit(stage, 1.0)
 
-        root_path = "/LinkedRod"
+        root_path  = "/LinkedRod"
         root_xform = UsdGeom.Xform.Define(stage, root_path)
         UsdPhysics.ArticulationRootAPI.Apply(root_xform.GetPrim())
 
         link_paths = []
-
         for i in range(n_links):
             p_start = pts[i]
             p_end   = pts[i + 1]
@@ -107,21 +123,12 @@ class LinkedRodObjectCfg(ArticulationCfg):
             length  = float(np.linalg.norm(vec))
             center  = (p_start + p_end) / 2.0
 
-            link_name = f"rod_link_{i}"
-            link_path = f"{root_path}/{link_name}"
-
-            xform = UsdGeom.Xform.Define(stage, link_path)
-
-            # ① 平行移動
+            link_path = f"{root_path}/rod_link_{i}"
+            xform     = UsdGeom.Xform.Define(stage, link_path)
             xform.AddTranslateOp().Set(Gf.Vec3d(*center.tolist()))
+            xform.AddOrientOp().Set(_rotation_from_y_to_vec(vec))
 
-            # ② 回転（Y軸 → vec方向）をクォータニオンで設定
-            quat = _rotation_from_y_to_vec(vec)
-            xform.AddOrientOp().Set(quat)
-
-            # 円柱（Y軸方向がUSDデフォルト）
-            shape_path = f"{link_path}/CylinderShape"
-            cyl = UsdGeom.Cylinder.Define(stage, shape_path)
+            cyl = UsdGeom.Cylinder.Define(stage, f"{link_path}/CylinderShape")
             cyl.GetRadiusAttr().Set(self.link_radius)
             cyl.GetHeightAttr().Set(length)
             cyl.GetAxisAttr().Set("Y")
@@ -131,14 +138,15 @@ class LinkedRodObjectCfg(ArticulationCfg):
             mass_api = UsdPhysics.MassAPI.Apply(xform.GetPrim())
             mass_api.GetMassAttr().Set(0.05 / n_links)
 
+            sem = Semantics.SemanticsAPI.Apply(cyl.GetPrim(), "Semantics")
+            sem.CreateSemanticTypeAttr().Set("class")
+            sem.CreateSemanticDataAttr().Set(f"rod_link_{i}")
+
             link_paths.append(link_path)
 
-        # --- ジョイント生成 ---
         for i in range(n_links - 1):
-            joint_name = f"rod_joint_{i + 1}"
-            joint_path = f"{link_paths[i + 1]}/{joint_name}"
-
-            p_joint   = pts[i + 1]
+            joint_path = f"{root_path}/rod_joint_{i + 1}"
+            p_joint    = pts[i + 1]
 
             if self.joint_type == "fixed":
                 joint = UsdPhysics.FixedJoint.Define(stage, joint_path)
@@ -151,78 +159,69 @@ class LinkedRodObjectCfg(ArticulationCfg):
             joint.GetBody0Rel().SetTargets([Sdf.Path(link_paths[i])])
             joint.GetBody1Rel().SetTargets([Sdf.Path(link_paths[i + 1])])
 
-            center_i  = (pts[i]     + pts[i + 1]) / 2.0
-            center_i1 = (pts[i + 1] + pts[i + 2]) / 2.0
-
-            # ---- 各リンクの回転行列を取得して逆変換 ----
-            def local_pos(p_world, center, vec):
-                """ワールド座標をリンクローカル座標に変換"""
-                v = vec / np.linalg.norm(vec)
-                y = np.array([0.0, 1.0, 0.0])
-                axis = np.cross(y, v)
-                sin_a = np.linalg.norm(axis)
-                cos_a = np.dot(y, v)
-                if sin_a < 1e-6:
-                    R = np.eye(3) if cos_a > 0 else np.diag([1, -1, -1])
-                else:
-                    axis = axis / sin_a
-                    angle = np.arctan2(sin_a, cos_a)
-                    # ロドリゲスの回転行列
-                    K = np.array([
-                        [0,        -axis[2],  axis[1]],
-                        [axis[2],   0,       -axis[0]],
-                        [-axis[1],  axis[0],  0      ],
-                    ])
-                    R = np.eye(3) + np.sin(angle) * K + (1 - np.cos(angle)) * (K @ K)
-                # ローカル座標 = R^T * (world - center)
-                return R.T @ (p_world - center)
-
-            vec_i  = pts[i + 1] - pts[i]
-            vec_i1 = pts[i + 2] - pts[i + 1]
-
-            lp0 = local_pos(p_joint, center_i,  vec_i)
-            lp1 = local_pos(p_joint, center_i1, vec_i1)
-
-            joint.GetLocalPos0Attr().Set(Gf.Vec3f(*lp0.tolist()))
-            joint.GetLocalPos1Attr().Set(Gf.Vec3f(*lp1.tolist()))
+            joint.GetLocalPos0Attr().Set(Gf.Vec3f(*_local_pos(p_joint, pts[i],     pts[i + 1]).tolist()))
+            joint.GetLocalPos1Attr().Set(Gf.Vec3f(*_local_pos(p_joint, pts[i + 1], pts[i + 2]).tolist()))
 
         stage.SetDefaultPrim(root_xform.GetPrim())
         stage.Save()
-        return usd_path
-    
-def _rotation_from_y_to_vec(vec: np.ndarray):
-    """
-    USD Cylinder(Y軸方向)をvec方向に向けるクォータニオンを返す。
-    Gf.Rotation は使わず numpy で直接 quaternion を計算する。
-    戻り値: Gf.Quatf
-    """
-    from pxr import Gf
 
-    y = np.array([0.0, 1.0, 0.0])
-    v = vec / np.linalg.norm(vec)
 
+# ---------- モジュールレベルのユーティリティ関数 ----------
+
+def _local_pos(p_world: np.ndarray, p_start: np.ndarray, p_end: np.ndarray) -> np.ndarray:
+    """ワールド座標 p_world をリンク(p_start→p_end)のローカル座標に変換する。"""
+    vec    = p_end - p_start
+    center = (p_start + p_end) / 2.0
+    R      = _rotation_matrix_y_to_vec(vec)
+    return R.T @ (p_world - center)
+
+
+def _rotation_matrix_y_to_vec(vec: np.ndarray) -> np.ndarray:
+    """Y軸をvec方向に向ける3x3回転行列を返す。"""
+    y   = np.array([0.0, 1.0, 0.0])
+    v   = vec / np.linalg.norm(vec)
     axis = np.cross(y, v)
     sin_a = float(np.linalg.norm(axis))
     cos_a = float(np.dot(y, v))
-
     if sin_a < 1e-6:
-        if cos_a > 0:
-            # 修正前: Gf.Quatd(1.0, Gf.Vec3d(0.0, 0.0, 0.0))
-            return Gf.Quatf(1.0, Gf.Vec3f(0.0, 0.0, 0.0))
-        else:
-            # 修正前: Gf.Quatd(0.0, Gf.Vec3d(1.0, 0.0, 0.0))
-            return Gf.Quatf(0.0, Gf.Vec3f(1.0, 0.0, 0.0))
-
-    # 正規化した回転軸
+        return np.eye(3) if cos_a > 0 else np.diag([1.0, -1.0, -1.0])
     axis = axis / sin_a
+    K = np.array([
+        [ 0,       -axis[2],  axis[1]],
+        [ axis[2],  0,       -axis[0]],
+        [-axis[1],  axis[0],  0      ],
+    ])
+    return np.eye(3) + sin_a * K + (1 - cos_a) * (K @ K)
 
-    # 半角公式でクォータニオンを構築
-    half_angle = float(np.arctan2(sin_a, cos_a)) / 2.0
-    w = float(np.cos(half_angle))
-    s = float(np.sin(half_angle))
 
-    return Gf.Quatf(w, Gf.Vec3f(
-        float(axis[0]) * s,
-        float(axis[1]) * s,
-        float(axis[2]) * s,
-    ))
+def _rotation_from_y_to_vec(vec: np.ndarray):
+    """Y軸をvec方向に向けるGf.Quatfを返す。"""
+    from pxr import Gf
+    R    = _rotation_matrix_y_to_vec(vec)
+    # 回転行列 → クォータニオン
+    tr   = R[0,0] + R[1,1] + R[2,2]
+    if tr > 0:
+        s = 0.5 / np.sqrt(tr + 1.0)
+        w = 0.25 / s
+        x = (R[2,1] - R[1,2]) * s
+        y = (R[0,2] - R[2,0]) * s
+        z = (R[1,0] - R[0,1]) * s
+    elif R[0,0] > R[1,1] and R[0,0] > R[2,2]:
+        s = 2.0 * np.sqrt(1.0 + R[0,0] - R[1,1] - R[2,2])
+        w = (R[2,1] - R[1,2]) / s
+        x = 0.25 * s
+        y = (R[0,1] + R[1,0]) / s
+        z = (R[0,2] + R[2,0]) / s
+    elif R[1,1] > R[2,2]:
+        s = 2.0 * np.sqrt(1.0 + R[1,1] - R[0,0] - R[2,2])
+        w = (R[0,2] - R[2,0]) / s
+        x = (R[0,1] + R[1,0]) / s
+        y = 0.25 * s
+        z = (R[1,2] + R[2,1]) / s
+    else:
+        s = 2.0 * np.sqrt(1.0 + R[2,2] - R[0,0] - R[1,1])
+        w = (R[1,0] - R[0,1]) / s
+        x = (R[0,2] + R[2,0]) / s
+        y = (R[1,2] + R[2,1]) / s
+        z = 0.25 * s
+    return Gf.Quatf(float(w), Gf.Vec3f(float(x), float(y), float(z)))

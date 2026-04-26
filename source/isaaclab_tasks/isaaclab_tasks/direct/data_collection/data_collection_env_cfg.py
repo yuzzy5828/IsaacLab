@@ -42,9 +42,16 @@ class RopeCollectionSceneCfg(InteractiveSceneCfg):
         init_state=ArticulationCfg.InitialStateCfg(
             pos=[0.6, 0.0, 1.0],
             rot=[0, 1, 0, 0],
-            joint_pos={"rod_joint_1": 0.0, "rod_joint_2": 0.0},
         ),
-        link_length=0.200,
+        joint_positions=[
+            (0.00, 0.00, 0.00),
+            (0.02, 0.00, 0.02),
+            (0.00, 0.00, 0.04),
+            (0.02, 0.00, 0.06),
+            (0.04, 0.00, 0.08),
+            (0.06, 0.00, 0.10),
+            (0.04, 0.00, 0.12),
+        ],
         link_radius=0.008,
         joint_type="revolute",
     )
@@ -54,7 +61,7 @@ class RopeCollectionSceneCfg(InteractiveSceneCfg):
         update_period=0.033,
         height=720,
         width=1280,
-        data_types=["depth", "instance_segmentation_fast"],
+        data_types=["depth", "semantic_segmentation"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=18.0,
             focus_distance=400.0,
@@ -79,7 +86,7 @@ class RopeCollectionEnvCfg(DirectRLEnvCfg):
     state_space: int = 0
 
     settle_time_s: float = 2.0
-    collect_per_episode: int = 5
+    collect_per_episode: int = 1
     table_height: float = TABLE_HEIGHT
 
     sim: SimulationCfg = SimulationCfg(
@@ -130,11 +137,11 @@ class RopeCollectionEnv(DirectRLEnv):
         return torch.zeros(self.num_envs, device=self.device)
 
     def _reset_idx(self, env_ids: torch.Tensor | None) -> None:
+        super()._reset_idx(env_ids)
         default_pos = self._robot.data.default_joint_pos[env_ids]
         default_vel = self._robot.data.default_joint_vel[env_ids]
         self._robot.write_joint_state_to_sim(default_pos, default_vel, env_ids=env_ids)
         self._robot.write_data_to_sim()
-        super()._reset_idx(env_ids)
 
     def _get_observations(self) -> dict:
         return {"policy": torch.zeros((self.num_envs, 1), device=self.device)}
